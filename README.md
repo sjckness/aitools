@@ -230,9 +230,12 @@ working on or changed, the **Run Viewer** in an editor tab, the **planner chat**
 in the sidebar and an **Inbox** with one-click approvals. It reads the same
 `.sjck/` files and works without the console.
 
-Until it is on the Marketplace: download `sjck-<version>.vsix` from the
-releases, or build it with `cd vscode && npm i && npx @vscode/vsce package`,
-then *Extensions → … → Install from VSIX*.
+Until it is on the Marketplace, build the package and install it:
+
+```bash
+cd vscode && npm i && npx @vscode/vsce package --no-dependencies
+code --install-extension sjck-*.vsix
+```
 
 ## sjck-onboard
 
