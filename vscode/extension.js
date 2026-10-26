@@ -45,8 +45,8 @@ class GraphProvider {
     if (!el) {
       const s = data.state;
       const head = new vscode.TreeItem(s.goal || 'sjck run', vscode.TreeItemCollapsibleState.None);
-      head.description = [s.status, s.mode && 'mode ' + s.mode].filter(Boolean).join(' · ');
-      head.tooltip = s.mode_reason || '';
+      head.description = [s.status, s.mode && 'mode ' + s.mode, model.runTokens(data)].filter(Boolean).join(' · ');
+      head.tooltip = [s.mode_reason, model.tokensTooltip(data)].filter(Boolean).join('\n\n');
       head.iconPath = themeIcon(s.status === 'done' ? 'validated' : s.status);
       head.command = { command: 'sjck.openViewer', title: 'Open Run Viewer' };
       return [head, ...model.levels(data.state.nodes).map((nodes, i) => {

@@ -57,3 +57,12 @@ test('plan notifications: first plan, re-plan, not on unchanged state', () => {
   assert.equal(m.changes(done, plan('a'))[0].action, 'plan', 'new plan after a finished run');
   assert.deepEqual(m.changes(null, plan('a')), [], 'nothing on the very first load');
 });
+
+test('run tokens in the tree head', () => {
+  assert.equal(m.runTokens({ tokens: null }), null);
+  const d = { tokens: { totals: { total: 125000, input: 8000, output: 17000, cache_read: 90000, cache_creation: 10000 }, by_node: { ORCH: { total: 60000 }, T01: { total: 65000 } } } };
+  assert.equal(m.runTokens(d), '125k tokens');
+  const tip = m.tokensTooltip(d);
+  assert.match(tip, /Cache hit: 83%/);
+  assert.match(tip, /T01 65k · ORCH 60k/);
+});

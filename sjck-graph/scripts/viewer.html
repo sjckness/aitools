@@ -66,6 +66,7 @@ code{font-family:var(--mono);font-size:12px;color:var(--fg2)}
 var D = JSON.parse(document.getElementById('data').textContent);
 var S = D.state || {}, T = D.tokens, R = D.report, F = D.findings || [], W = D.watchdog || [];
 var COL = {planned:'#F5A524',validated:'#3FB950',running:'#4C8DFF',done:'#A371F7',pending:'#6B7585',failed:'#F85149',blocked:'#E3B341','done-unverified':'#D4A72C'};
+var TYPES = [['cache_read','cache read','#4C8DFF'],['cache_creation','cache write','#A371F7'],['input','fresh input','#F5A524'],['output','output','#3FB950']];
 var CAT = [['system','system + CLAUDE.md','#5B6B82'],['card','card','#F5A524'],['interfaces','interfaces','#FFD08A'],
   ['file_read_in_card','files in card','#3FB950'],['file_read_outside_card','files outside card','#F85149'],
   ['tool_output','tool output','#4C8DFF'],['agent_messages','agent messages','#A371F7'],['other','other','#3A4250']];
@@ -128,11 +129,13 @@ function graphView(){
 }
 
 function tokensView(){
-  if(!T)return '<section class="card"><h2>Token</h2><div class="empty">No token data yet: it arrives with v0.4 (<code>.sjck/tokens.json</code>, command <code>/sjck-tokens</code>).</div></section>';
+  if(!T)return '<section class="card"><h2>Token</h2><div class="empty">No token data yet: it is written at the end of each node and of each turn (<code>.sjck/tokens.json</code>, hooks <code>SubagentStop</code>/<code>Stop</code> of the sjck-graph plugin).</div></section>';
   var rows=[],bn=T.by_node||{};Object.keys(bn).forEach(function(id){rows.push([id,bn[id]])});
-  var leg=CAT.map(function(c){return '<span><i class="sw" style="background:'+c[2]+'"></i>'+c[1]+'</span>'}).join('');
-  var bars=rows.map(function(r){var cats=r[1].categories||{},tot=0;CAT.forEach(function(c){tot+=cats[c[0]]||0});
-    var segs=CAT.map(function(c){var v=cats[c[0]]||0;return v?'<div title="'+esc(c[1]+': '+k(v))+'" style="width:'+(v/tot*100)+'%;background:'+c[2]+'"></div>':''}).join('');
+  // Without context categories (collector v0.4-A), split each node by token type instead.
+  var byType=!rows.some(function(r){return r[1].categories});var CS=byType?TYPES:CAT;
+  var leg=CS.map(function(c){return '<span><i class="sw" style="background:'+c[2]+'"></i>'+c[1]+'</span>'}).join('');
+  var bars=rows.map(function(r){var cats=(byType?r[1].types||r[1]:r[1].categories)||{},tot=0;CS.forEach(function(c){tot+=cats[c[0]]||0});
+    var segs=CS.map(function(c){var v=cats[c[0]]||0;return v?'<div title="'+esc(c[1]+': '+k(v))+'" style="width:'+(v/tot*100)+'%;background:'+c[2]+'"></div>':''}).join('');
     var tt=r[1].total!=null?r[1].total:tot;
     return '<div class="trow"><span class="nid" style="font-size:12px">'+esc(r[0])+'</span><div class="stack" role="img" aria-label="'+esc(r[0]+': '+k(tt)+' token')+'">'+segs+'</div><span class="num">'+k(tt)+'</span></div>'}).join('');
   var cmp='';var C=R&&R.compare;
@@ -141,7 +144,7 @@ function tokensView(){
     '<div class="legend"><span><i class="sw" style="background:#F5A524"></i>sjck-graph</span><span><i class="sw" style="background:#5B6B82"></i>baseline</span></div></div>'}
   var ins=(R&&R.insights||[]).map(function(i){var good=(i.saving_estimate||0)<0||i.good;
     return '<div class="ins"><div class="between"><span class="lbl" style="font-size:10px">'+esc(i.kind)+'</span><span style="font:600 13px var(--mono);color:'+(good?'#3FB950':'#F85149')+'">'+esc(i.amount||(i.tokens!=null?(good?'−':'+')+k(Math.abs(i.saving_estimate||i.tokens)):''))+'</span></div><div style="font-size:13px;font-weight:500">'+esc(i.title||i.suggestion)+'</div><div class="sub" style="font-size:12px">'+esc(i.title?i.suggestion:(i.node||''))+'</div></div>'}).join('');
-  return '<section class="row"><div class="card main"><div class="between" style="flex-wrap:wrap;align-items:center"><h2>Where the context goes, per node</h2><div class="legend">'+leg+'</div></div>'+
+  return '<section class="row"><div class="card main"><div class="between" style="flex-wrap:wrap;align-items:center"><h2>'+(byType?'Tokens per node, by type':'Where the context goes, per node')+'</h2><div class="legend">'+leg+'</div></div>'+
     (bars||'<div class="empty">No nodes with recorded tokens.</div>')+cmp+'</div><div class="card side" style="gap:12px"><h2>Where tokens are saved, where they are wasted</h2>'+(ins||'<div class="sub">Insights arrive with <code>token-report.json</code>.</div>')+'</div></section>';
 }
 
