@@ -1,5 +1,10 @@
 # Changelog
 
+## vscode 0.1.0 — 2026-10-26
+- Estensione VS Code nativa (`vscode/`): vista Graph nell'activity bar (livelli e nodi con stato, modello/effort, tool call vs budget, tentativi, token; card al clic; diff dei file cambiati da un nodo), barra di stato, decorazioni nell'Explorer, Run Viewer in una tab (CSP con nonce), chat col planner nella sidebar, Inbox con approvazioni, Plan/Run/Stop con log nell'output, notifiche.
+- Riusa i moduli della console (`data`, `inbox`, `runner`, `chat`), copiati in `lib/` al packaging; non scrive mai lo stato del run.
+- Verifiche: type-check con `@types/vscode`, 5 test (logica e attivazione con un `vscode` finto), pacchetto `.vsix` generato con `vsce`. Non ancora provata dentro un VS Code reale.
+
 ## 0.3.2 + console 0.2.0 — 2026-10-26 · live change requests
 - sjck-graph: `scripts/inbox.py` (pending, validate, next-id, apply [--dry-run], decisions [--apply]): change request con op add_node, edit_card, set, remove_node, add_dep, rerun (a cascata sui dipendenti, output precedente in `.prev.json`), accept_finding, kit_change (solo proposta in `.sjck/kit-proposals/`). Rollback se il plan score diventa `reject`; exit 3 se tocca un nodo in esecuzione.
 - sjck-graph: skill e comando `/sjck-change` per discutere modifiche a un run in corso in una seconda sessione; l'orchestratore controlla l'inbox a ogni transizione (`reference/inbox.md`), unico a scrivere lo stato.

@@ -1,0 +1,135 @@
+{
+  "name": "sjck",
+  "displayName": "sjck — agent graph for Claude Code",
+  "description": "Watch and steer sjck agent-graph runs inside VS Code: live node tree, status bar, file decorations, Run Viewer, planner chat and an inbox for findings and change requests.",
+  "version": "0.1.0",
+  "publisher": "sjckness",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sjckness/sjckAI-tools.git",
+    "directory": "vscode"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["AI", "Visualization", "Other"],
+  "keywords": ["claude", "claude code", "agents", "dag", "orchestration"],
+  "main": "./extension.js",
+  "activationEvents": [
+    "workspaceContains:.sjck/state.json",
+    "workspaceContains:.claude/sjck-scripts",
+    "onView:sjck.graph"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        { "id": "sjck", "title": "sjck", "icon": "media/sjck.svg" }
+      ]
+    },
+    "views": {
+      "sjck": [
+        { "id": "sjck.graph", "name": "Graph" },
+        { "id": "sjck.inbox", "name": "Inbox" },
+        { "id": "sjck.chat", "name": "Planner chat", "type": "webview" }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "sjck.graph",
+        "contents": "No sjck run in this workspace yet.\n[Plan a task](command:sjck.plan)\n[Run a task](command:sjck.run)\nRequires Claude Code with the sjck-graph plugin ([install](https://github.com/sjckness/sjckAI-tools#install))."
+      },
+      {
+        "view": "sjck.inbox",
+        "contents": "Nothing waiting for you."
+      }
+    ],
+    "commands": [
+      { "command": "sjck.plan", "title": "Plan a task", "category": "sjck", "icon": "$(lightbulb)" },
+      { "command": "sjck.run", "title": "Run", "category": "sjck", "icon": "$(play)" },
+      { "command": "sjck.stop", "title": "Stop the run started here", "category": "sjck", "icon": "$(debug-stop)" },
+      { "command": "sjck.openViewer", "title": "Open Run Viewer", "category": "sjck", "icon": "$(graph)" },
+      { "command": "sjck.refresh", "title": "Refresh", "category": "sjck", "icon": "$(refresh)" },
+      { "command": "sjck.showLog", "title": "Show run log", "category": "sjck", "icon": "$(output)" },
+      { "command": "sjck.change", "title": "Change the running plan…", "category": "sjck", "icon": "$(comment-discussion)" },
+      { "command": "sjck.chatReset", "title": "New planner chat", "category": "sjck", "icon": "$(clear-all)" },
+      { "command": "sjck.openCard", "title": "Open card", "category": "sjck", "icon": "$(go-to-file)" },
+      { "command": "sjck.nodeDiff", "title": "Show changes of this node", "category": "sjck", "icon": "$(diff)" },
+      { "command": "sjck.approvePlan", "title": "Approve plan and run", "category": "sjck", "icon": "$(check)" },
+      { "command": "sjck.findingAccept", "title": "Accept", "category": "sjck", "icon": "$(check)" },
+      { "command": "sjck.findingDefer", "title": "Later (backlog)", "category": "sjck", "icon": "$(history)" },
+      { "command": "sjck.findingReject", "title": "Reject", "category": "sjck", "icon": "$(close)" },
+      { "command": "sjck.crApply", "title": "Apply change request", "category": "sjck", "icon": "$(check)" },
+      { "command": "sjck.crReject", "title": "Reject change request", "category": "sjck", "icon": "$(close)" }
+    ],
+    "menus": {
+      "view/title": [
+        { "command": "sjck.plan", "when": "view == sjck.graph", "group": "navigation@1" },
+        { "command": "sjck.run", "when": "view == sjck.graph && !sjck.running", "group": "navigation@2" },
+        { "command": "sjck.stop", "when": "view == sjck.graph && sjck.running", "group": "navigation@2" },
+        { "command": "sjck.openViewer", "when": "view == sjck.graph", "group": "navigation@3" },
+        { "command": "sjck.showLog", "when": "view == sjck.graph", "group": "1_more" },
+        { "command": "sjck.refresh", "when": "view == sjck.graph", "group": "1_more" },
+        { "command": "sjck.chatReset", "when": "view == sjck.chat", "group": "navigation" }
+      ],
+      "view/item/context": [
+        { "command": "sjck.openCard", "when": "view == sjck.graph && viewItem =~ /^node/", "group": "inline@1" },
+        { "command": "sjck.nodeDiff", "when": "view == sjck.graph && viewItem =~ /^node\\.(validated|done|done-unverified|failed)/", "group": "inline@2" },
+        { "command": "sjck.findingAccept", "when": "view == sjck.inbox && viewItem == finding", "group": "inline@1" },
+        { "command": "sjck.findingDefer", "when": "view == sjck.inbox && viewItem == finding", "group": "inline@2" },
+        { "command": "sjck.findingReject", "when": "view == sjck.inbox && viewItem == finding", "group": "inline@3" },
+        { "command": "sjck.crApply", "when": "view == sjck.inbox && viewItem == cr.proposed", "group": "inline@1" },
+        { "command": "sjck.crReject", "when": "view == sjck.inbox && viewItem == cr.proposed", "group": "inline@2" },
+        { "command": "sjck.approvePlan", "when": "view == sjck.inbox && viewItem == plan", "group": "inline@1" }
+      ],
+      "commandPalette": [
+        { "command": "sjck.openCard", "when": "false" },
+        { "command": "sjck.nodeDiff", "when": "false" },
+        { "command": "sjck.findingAccept", "when": "false" },
+        { "command": "sjck.findingDefer", "when": "false" },
+        { "command": "sjck.findingReject", "when": "false" },
+        { "command": "sjck.crApply", "when": "false" },
+        { "command": "sjck.crReject", "when": "false" }
+      ]
+    },
+    "configuration": {
+      "title": "sjck",
+      "properties": {
+        "sjck.claude.path": {
+          "type": "string",
+          "default": "claude",
+          "description": "Claude Code CLI used for Plan, Run and the planner chat."
+        },
+        "sjck.claude.runArgs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["--output-format", "stream-json", "--verbose", "--permission-mode", "acceptEdits", "--allowedTools", "Bash"],
+          "markdownDescription": "Arguments added to `claude -p` for Plan and Run. Non-interactive runs must decide permissions up front: the default lets the run edit files and use Bash in this workspace."
+        },
+        "sjck.decorations": {
+          "type": "boolean",
+          "default": true,
+          "description": "Mark files in the Explorer that a running node is working on, or that a validated node changed."
+        },
+        "sjck.notifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a notification when a node fails or blocks, a run ends or a plan is ready."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "sync": "node scripts/sync.js",
+    "test": "node --test test/model.test.js test/activate.test.js",
+    "check": "tsc -p jsconfig.json",
+    "vscode:prepublish": "node scripts/sync.js",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.4.0"
+  }
+}

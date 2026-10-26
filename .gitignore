@@ -4,3 +4,6 @@ evals/results/
 examples/demo/.sjck/view.html
 console/ui/viewer.html
 console/node_modules/
+vscode/lib/
+vscode/node_modules/
+vscode/*.vsix

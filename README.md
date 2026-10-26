@@ -5,7 +5,7 @@
 **Claude Code plugins that make agents work as a graph:
 minimal context, parallel steps, every step validated before the next one.**
 
-`sjck-graph` · `sjck-onboard` · `sjck console`
+`sjck-graph` · `sjck-onboard` · `sjck console` · `VS Code`
 
 <img src="docs/img/viewer-graph.png" alt="sjck-graph Run Viewer: graph nodes by level, run KPIs, critic, watchdog and log" width="100%">
 
@@ -220,6 +220,19 @@ session in the repo and use `/sjck-change`.
 
 <img src="docs/img/console-home.png" alt="sjck console home: project cards with status, progress and last update" width="100%">
 </details>
+
+## VS Code extension
+
+Native integration in [`vscode/`](vscode/README.md): a **Graph** view in the
+activity bar with live node status, a **status bar** item
+(`sjck 4/9 · T02 T05 · 2 waiting`), **Explorer badges** on the files a node is
+working on or changed, the **Run Viewer** in an editor tab, the **planner chat**
+in the sidebar and an **Inbox** with one-click approvals. It reads the same
+`.sjck/` files and works without the console.
+
+Until it is on the Marketplace: download `sjck-<version>.vsix` from the
+releases, or build it with `cd vscode && npm i && npx @vscode/vsce package`,
+then *Extensions → … → Install from VSIX*.
 
 ## sjck-onboard
 

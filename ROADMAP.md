@@ -14,6 +14,8 @@
 - [x] Fase 1: daemon, home dei progetti, Plan/Run dal browser, viewer live (`docs/specs/console.md`)
 - [x] Fase 2: chat con il planner, approvazioni, notifiche
 - [ ] Fase 3: analytics, multi-macchina, app desktop
+- [x] Estensione VS Code nativa 0.1.0 (`vscode/`)
+- [ ] Pubblicazione su Marketplace VS Code e Open VSX
 
 ## Prossimo — live change requests
 - [x] `docs/specs/change-requests.md`: `/sjck-change`, CR in `.sjck/changes/`, applicati live da `inbox.py`
