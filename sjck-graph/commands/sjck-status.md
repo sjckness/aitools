@@ -1,5 +1,5 @@
 ---
-description: Mostra lo stato del run corrente del grafo, senza eseguire nulla.
+description: Show the current graph run status without executing anything.
 ---
 Leggi .sjck/state.json. Se non esiste, dillo in una riga.
 Altrimenti mostra: goal, modalità, una tabella dei nodi (id, titolo, stato,

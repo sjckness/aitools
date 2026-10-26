@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -66,9 +66,9 @@ code{font-family:var(--mono);font-size:12px;color:var(--fg2)}
 var D = JSON.parse(document.getElementById('data').textContent);
 var S = D.state || {}, T = D.tokens, R = D.report, F = D.findings || [], W = D.watchdog || [];
 var COL = {planned:'#F5A524',validated:'#3FB950',running:'#4C8DFF',done:'#A371F7',pending:'#6B7585',failed:'#F85149',blocked:'#E3B341','done-unverified':'#D4A72C'};
-var CAT = [['system','sistema + CLAUDE.md','#5B6B82'],['card','card','#F5A524'],['interfaces','interfacce','#FFD08A'],
-  ['file_read_in_card','file in card','#3FB950'],['file_read_outside_card','file fuori card','#F85149'],
-  ['tool_output','output tool','#4C8DFF'],['agent_messages','messaggi agenti','#A371F7'],['other','altro','#3A4250']];
+var CAT = [['system','system + CLAUDE.md','#5B6B82'],['card','card','#F5A524'],['interfaces','interfaces','#FFD08A'],
+  ['file_read_in_card','files in card','#3FB950'],['file_read_outside_card','files outside card','#F85149'],
+  ['tool_output','tool output','#4C8DFF'],['agent_messages','agent messages','#A371F7'],['other','other','#3A4250']];
 var SEV = {high:'#F85149',med:'#E3B341',low:'#8B95A5'};
 var nodes = S.nodes || [], M = S.metrics || {};
 var tab = (location.hash || '#graph').slice(1);
@@ -93,42 +93,42 @@ function kpis(){
   var run=nodes.filter(function(n){return n.status==='running'}).map(function(n){return n.id});
   if(tab==='tokens'&&T){var t=T.totals||{};var inp=(t.input||0)+(t.cache_read||0)+(t.cache_creation||0);
     var hit=inp?Math.round((t.cache_read||0)/inp*100)+'%':'—';var v=cnt('validated');
-    return [['token totali',k(t.total!=null?t.total:(t.input||0)+(t.output||0)),'tutti gli agenti'],['cache hit',hit,'cache read / input'],
-      ['per nodo validato',v?k((t.total||0)/v):'—',v+' nodi validati'],['sprecati',k(R&&R.wasted),'tentativi falliti, loop, letture fuori card'],
-      ['costo',T.cost!=null?T.cost:'[prezzi]',T.cost!=null?(T.currency||''):'imposta prices.json']]}
-  return [['nodi',cnt('validated')+'/'+nodes.length,'validati'],['in corso',String(run.length),run.join(' · ')||'—'],
-    ['subagenti',String(M.subagents||0),'lanciati'],['validator fail',String(M.validator_fails||0),'tentativi bocciati'],
-    ['watchdog',String((M.watchdog_warnings||0)+(M.watchdog_stops||0)),(M.watchdog_warnings||0)+' richiami · '+(M.watchdog_stops||0)+' stop']];
+    return [['total tokens',k(t.total!=null?t.total:(t.input||0)+(t.output||0)),'all agents'],['cache hit',hit,'cache read / input'],
+      ['per validated node',v?k((t.total||0)/v):'—',v+' validated nodes'],['wasted',k(R&&R.wasted),'failed attempts, loops, reads outside card'],
+      ['cost',T.cost!=null?T.cost:'[prices]',T.cost!=null?(T.currency||''):'set prices.json']]}
+  return [['nodes',cnt('validated')+'/'+nodes.length,'validated'],['running',String(run.length),run.join(' · ')||'—'],
+    ['subagents',String(M.subagents||0),'launched'],['validator fail',String(M.validator_fails||0),'rejected attempts'],
+    ['watchdog',String((M.watchdog_warnings||0)+(M.watchdog_stops||0)),(M.watchdog_warnings||0)+' nudges · '+(M.watchdog_stops||0)+' stops']];
 }
 
 function graphView(){
   var L=levels(),h='';
   L.forEach(function(lv,i){
-    h+='<div style="display:flex;align-items:stretch"><div class="lvl"><div class="lbl">livello '+i+'</div>';
+    h+='<div style="display:flex;align-items:stretch"><div class="lvl"><div class="lbl">level '+i+'</div>';
     lv.forEach(function(n){
       var c=col(n.status),b=(n.budget||{}).tool_calls,u=(n.usage||{}).tool_calls||0,pct=b?Math.min(100,Math.round(u/b*100)):0;
-      var mm=[n.model||n.agent,n.effort].filter(Boolean).join(' · ')+(n.attempts?' · tentativo '+(n.attempts+1):'');
+      var mm=[n.model||n.agent,n.effort].filter(Boolean).join(' · ')+(n.attempts?' · attempt '+(n.attempts+1):'');
       h+='<div class="node '+esc(n.status)+'" style="'+(n.status==='running'?'border-color:'+c:'')+'">'+
         '<div class="between"><span class="nid">'+esc(n.id)+'</span>'+badge(n.status)+'</div>'+
         '<div style="font-size:13px;font-weight:500">'+esc(n.title)+'</div><div class="meta">'+esc(mm)+'</div>'+
         (b?'<div class="track"><div style="width:'+pct+'%;background:'+(u/b>.8?'#E3B341':c)+'"></div></div>':'')+
-        '<div class="between meta"><span>'+(b?u+'/'+b+' call':esc(n.agent||''))+'</span><span>'+k(nodeTok(n.id))+'</span></div></div>';
+        '<div class="between meta"><span>'+(b?u+'/'+b+' calls':esc(n.agent||''))+'</span><span>'+k(nodeTok(n.id))+'</span></div></div>';
     });
     h+='</div>'+(i<L.length-1?'<div class="arrow" aria-hidden="true"><svg width="24" height="12" viewBox="0 0 24 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M0 6h22M17 1l5 5-5 5"/></svg></div>':'')+'</div>';
   });
   var leg=['validated','running','done','pending','failed','blocked'].map(function(s){return '<span><i class="dot" style="background:'+col(s)+'"></i>'+s+'</span>'}).join('');
   var crit=(S.critic||[]).slice(-1)[0],ps=S.plan_score;
-  var side='<div class="card"><h2>Critico</h2>'+(crit?'<div>'+badge(crit.verdict==='approve'?'validated':'blocked').replace(/>[^<]*</,'>'+esc(crit.at+' · '+crit.verdict+' · round '+crit.round)+'<')+'</div><p style="margin:0;color:var(--fg2);font-size:13px">'+esc(crit.resolution||(crit.points||[]).join(' · '))+'</p>':'<div class="sub">Nessuna revisione ancora.</div>')+
-    (ps?'<div class="meta">plan score: larghezza '+ps.width+' · percorso critico '+ps.critical_path+' · overlap '+ps.file_overlap+' · '+esc(ps.verdict)+'</div>':'')+'</div>';
+  var side='<div class="card"><h2>Critic</h2>'+(crit?'<div>'+badge(crit.verdict==='approve'?'validated':'blocked').replace(/>[^<]*</,'>'+esc(crit.at+' · '+crit.verdict+' · round '+crit.round)+'<')+'</div><p style="margin:0;color:var(--fg2);font-size:13px">'+esc(crit.resolution||(crit.points||[]).join(' · '))+'</p>':'<div class="sub">No review yet.</div>')+
+    (ps?'<div class="meta">plan score: width '+ps.width+' · critical path '+ps.critical_path+' · overlap '+ps.file_overlap+' · '+esc(ps.verdict)+'</div>':'')+'</div>';
   side+='<div class="card"><h2>Watchdog</h2>'+(W.length?W.slice(-6).reverse().map(function(e){var c=e.level>=2?'#F85149':e.level===1?'#E3B341':'#4C8DFF';
-    return '<div class="ev"><span class="t">'+esc(e.t||String(e.ts||'').slice(11,16))+'</span><i class="dot" style="background:'+c+'"></i><span style="color:var(--fg2)">'+esc((e.node?e.node+': ':'')+(e.text||[e.kind,e.action].filter(Boolean).join(' → ')+(e.detail?' — '+e.detail:'')))+'</span></div>'}).join(''):'<div class="sub">Nessun evento.</div>')+'</div>';
+    return '<div class="ev"><span class="t">'+esc(e.t||String(e.ts||'').slice(11,16))+'</span><i class="dot" style="background:'+c+'"></i><span style="color:var(--fg2)">'+esc((e.node?e.node+': ':'')+(e.text||[e.kind,e.action].filter(Boolean).join(' → ')+(e.detail?' — '+e.detail:'')))+'</span></div>'}).join(''):'<div class="sub">No events.</div>')+'</div>';
   side+='<div class="card"><h2>Log</h2><div class="log">'+(S.log||[]).slice(-30).reverse().map(function(l){return '<div>'+esc(l)+'</div>'}).join('')+'</div></div>';
-  return '<section class="row"><div class="card main"><div class="between" style="flex-wrap:wrap;align-items:center"><h2>Grafo</h2><div class="legend">'+leg+'</div></div>'+
-    (nodes.length?'<div class="scroll"><div class="dag">'+h+'</div></div>':'<div class="empty">Nessun nodo ancora.</div>')+'</div><div class="side">'+side+'</div></section>';
+  return '<section class="row"><div class="card main"><div class="between" style="flex-wrap:wrap;align-items:center"><h2>Graph</h2><div class="legend">'+leg+'</div></div>'+
+    (nodes.length?'<div class="scroll"><div class="dag">'+h+'</div></div>':'<div class="empty">No nodes yet.</div>')+'</div><div class="side">'+side+'</div></section>';
 }
 
 function tokensView(){
-  if(!T)return '<section class="card"><h2>Token</h2><div class="empty">Nessun dato sui token: arriva con la v0.4 (<code>.sjck/tokens.json</code>, comando <code>/sjck-tokens</code>).</div></section>';
+  if(!T)return '<section class="card"><h2>Token</h2><div class="empty">No token data yet: it arrives with v0.4 (<code>.sjck/tokens.json</code>, command <code>/sjck-tokens</code>).</div></section>';
   var rows=[],bn=T.by_node||{};Object.keys(bn).forEach(function(id){rows.push([id,bn[id]])});
   var leg=CAT.map(function(c){return '<span><i class="sw" style="background:'+c[2]+'"></i>'+c[1]+'</span>'}).join('');
   var bars=rows.map(function(r){var cats=r[1].categories||{},tot=0;CAT.forEach(function(c){tot+=cats[c[0]]||0});
@@ -141,27 +141,27 @@ function tokensView(){
     '<div class="legend"><span><i class="sw" style="background:#F5A524"></i>sjck-graph</span><span><i class="sw" style="background:#5B6B82"></i>baseline</span></div></div>'}
   var ins=(R&&R.insights||[]).map(function(i){var good=(i.saving_estimate||0)<0||i.good;
     return '<div class="ins"><div class="between"><span class="lbl" style="font-size:10px">'+esc(i.kind)+'</span><span style="font:600 13px var(--mono);color:'+(good?'#3FB950':'#F85149')+'">'+esc(i.amount||(i.tokens!=null?(good?'−':'+')+k(Math.abs(i.saving_estimate||i.tokens)):''))+'</span></div><div style="font-size:13px;font-weight:500">'+esc(i.title||i.suggestion)+'</div><div class="sub" style="font-size:12px">'+esc(i.title?i.suggestion:(i.node||''))+'</div></div>'}).join('');
-  return '<section class="row"><div class="card main"><div class="between" style="flex-wrap:wrap;align-items:center"><h2>Dove va il contesto, per nodo</h2><div class="legend">'+leg+'</div></div>'+
-    (bars||'<div class="empty">Nessun nodo con token registrati.</div>')+cmp+'</div><div class="card side" style="gap:12px"><h2>Dove si risparmia, dove si spreca</h2>'+(ins||'<div class="sub">Gli insights arrivano con <code>token-report.json</code>.</div>')+'</div></section>';
+  return '<section class="row"><div class="card main"><div class="between" style="flex-wrap:wrap;align-items:center"><h2>Where the context goes, per node</h2><div class="legend">'+leg+'</div></div>'+
+    (bars||'<div class="empty">No nodes with recorded tokens.</div>')+cmp+'</div><div class="card side" style="gap:12px"><h2>Where tokens are saved, where they are wasted</h2>'+(ins||'<div class="sub">Insights arrive with <code>token-report.json</code>.</div>')+'</div></section>';
 }
 
 function findingsView(){
-  if(!F.length)return '<section class="card"><h2>Findings</h2><div class="empty">Nessun finding registrato.</div></section>';
+  if(!F.length)return '<section class="card"><h2>Findings</h2><div class="empty">No findings logged.</div></section>';
   var rows=F.map(function(f){var c=SEV[f.severity]||'#8B95A5';
     return '<tr><td><code>'+esc(f.id)+'</code></td><td><code>'+esc(f.from)+'</code></td><td><span class="badge" style="color:'+c+';background:'+c+'22">'+esc(f.severity)+'</span></td><td>'+esc(f.what)+(f.file?'<div class="meta">'+esc(f.file)+'</div>':'')+'</td><td style="color:var(--fg2)">'+esc(f.placement||'—')+'</td><td class="meta">'+esc(f.status||'open')+'</td></tr>'}).join('');
-  return '<section class="card"><h2>Findings</h2><div class="scroll"><table><thead><tr><th>id</th><th>da</th><th>sev.</th><th>cosa</th><th>posizione proposta</th><th>stato</th></tr></thead><tbody>'+rows+'</tbody></table></div></section>';
+  return '<section class="card"><h2>Findings</h2><div class="scroll"><table><thead><tr><th>id</th><th>from</th><th>sev.</th><th>what</th><th>proposed placement</th><th>status</th></tr></thead><tbody>'+rows+'</tbody></table></div></section>';
 }
 
 function render(){
   var st=S.status||'?',sc=st==='planned'?'#F5A524':st==='running'?'#4C8DFF':st==='done'?'#3FB950':st==='failed'?'#F85149':'#6B7585';
-  var tabs=[['graph','Grafo'],['tokens','Token'],['findings','Findings'+(F.length?' · '+F.length:'')]];
+  var tabs=[['graph','Graph'],['tokens','Tokens'],['findings','Findings'+(F.length?' · '+F.length:'')]];
   var h='<header><div style="min-width:0"><div class="eyebrow"><span style="display:inline-flex;align-items:center;gap:6px;color:'+sc+'"><i class="dot" style="background:'+sc+'"></i>'+esc(st)+'</span>'+
-    '<span>·</span><span>modalità '+esc(S.mode||'?')+'</span>'+(S.started?'<span>·</span><span>iniziato '+esc(String(S.started).slice(11,16)||S.started)+'</span>':'')+'<span>·</span><span>aggiornato '+esc(D.updated)+'</span></div>'+
+    '<span>·</span><span>mode '+esc(S.mode||'?')+'</span>'+(S.started?'<span>·</span><span>started '+esc(String(S.started).slice(11,16)||S.started)+'</span>':'')+'<span>·</span><span>updated '+esc(D.updated)+'</span></div>'+
     '<h1>'+esc(S.goal||'sjck-graph')+'</h1><div class="sub">'+esc(S.mode_reason||'')+'</div></div>'+
     '<div class="tabs" role="tablist">'+tabs.map(function(t){return '<button type="button" role="tab" data-tab="'+t[0]+'" aria-selected="'+(tab===t[0])+'">'+t[1]+'</button>'}).join('')+'</div></header>';
   h+='<section class="kpis" aria-label="Indicatori">'+kpis().map(function(x){return '<div class="card kpi"><div class="lbl">'+x[0]+'</div><div class="big">'+esc(x[1])+'</div><div class="sub" style="font-size:12px">'+esc(x[2])+'</div></div>'}).join('')+'</section>';
   h+=tab==='tokens'?tokensView():tab==='findings'?findingsView():graphView();
-  h+='<footer><span><code>.sjck/state.json</code>'+(T?' + <code>tokens.json</code>':'')+'</span><span>'+(D.refresh>0&&S.status==='running'?'si aggiorna ogni '+D.refresh+' s':'snapshot')+'</span></footer>';
+  h+='<footer><span><code>.sjck/state.json</code>'+(T?' + <code>tokens.json</code>':'')+'</span><span>'+(D.refresh>0&&S.status==='running'?'refreshes every '+D.refresh+' s':'snapshot')+'</span></footer>';
   document.getElementById('app').innerHTML=h;
   Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'),function(b){b.onclick=function(){tab=b.getAttribute('data-tab');history.replaceState(null,'','#'+tab);render()}});
 }

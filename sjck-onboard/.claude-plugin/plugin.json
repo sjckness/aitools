@@ -1,8 +1,14 @@
 {
   "name": "sjck-onboard",
   "version": "0.1.1",
-  "description": "Analizza un repo e genera un CLAUDE.md compatto più una mappa per moduli, così Claude e i suoi agenti capiscono il progetto senza esplorarlo ogni volta.",
-  "author": { "name": "Andreas Steffens" },
+  "description": "Analyzes a repo and generates a compact CLAUDE.md plus a per-module map, so Claude and its agents understand the project without exploring it.",
+  "author": {
+    "name": "Andreas Steffens"
+  },
   "license": "MIT",
-  "keywords": ["claude-md", "onboarding", "context"]
+  "keywords": [
+    "claude-md",
+    "onboarding",
+    "context"
+  ]
 }

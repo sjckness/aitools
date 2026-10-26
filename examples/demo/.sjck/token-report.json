@@ -1,15 +1,64 @@
 {
   "wasted": 50000,
   "insights": [
-    {"kind": "contract", "title": "I JSON dei subagenti tengono leggero l'orchestratore", "suggestion": "7 nodi → 6k token di output invece di ~140k di file letti", "amount": "−134k", "good": true},
-    {"kind": "cache", "title": "Cache hit 61%, ma T05 riparte freddo", "suggestion": "Stesso prefisso di sistema: lanciarlo dopo T01 lo renderebbe caldo", "amount": "≈ −20k", "good": true},
-    {"kind": "card povera", "node": "T02", "title": "T02 legge 19k token fuori card", "suggestion": "Aggiungere hooks.md alle interfacce prima del retry", "amount": "+19k"},
-    {"kind": "tentativi", "node": "T02", "title": "Primo tentativo di T02 bocciato", "suggestion": "Token del tentativo fallito", "amount": "+31k"},
-    {"kind": "modello", "node": "T04", "title": "T04 con haiku approvato al primo colpo", "suggestion": "Scelta corretta: nessun cambio suggerito", "amount": "ok", "good": true}
+    {
+      "kind": "contract",
+      "title": "Subagent JSON keeps the orchestrator lean",
+      "suggestion": "7 nodes → 6k output tokens instead of ~140k of file reads",
+      "amount": "−134k",
+      "good": true
+    },
+    {
+      "kind": "cache",
+      "title": "61% cache hit, but T05 starts cold",
+      "suggestion": "Same system prefix: launching it after T01 would keep it warm",
+      "amount": "≈ −20k",
+      "good": true
+    },
+    {
+      "kind": "thin card",
+      "node": "T02",
+      "title": "T02 reads 19k tokens outside its card",
+      "suggestion": "Add hooks.md to the interfaces before the retry",
+      "amount": "+19k"
+    },
+    {
+      "kind": "attempts",
+      "node": "T02",
+      "title": "T02's first attempt was rejected",
+      "suggestion": "Tokens spent on the failed attempt",
+      "amount": "+31k"
+    },
+    {
+      "kind": "model",
+      "node": "T04",
+      "title": "T04 on haiku approved first try",
+      "suggestion": "Right call: no change suggested",
+      "amount": "ok",
+      "good": true
+    }
   ],
   "compare": [
-    {"label": "token per task", "kit": 62, "baseline": 100, "delta": "−38%", "better": true},
-    {"label": "durata", "kit": 71, "baseline": 100, "delta": "−29%", "better": true},
-    {"label": "task riuscite", "kit": 6, "baseline": 5, "delta": "6/6 vs 5/6", "better": true}
+    {
+      "label": "tokens per task",
+      "kit": 62,
+      "baseline": 100,
+      "delta": "−38%",
+      "better": true
+    },
+    {
+      "label": "duration",
+      "kit": 71,
+      "baseline": 100,
+      "delta": "−29%",
+      "better": true
+    },
+    {
+      "label": "tasks passed",
+      "kit": 6,
+      "baseline": 5,
+      "delta": "6/6 vs 5/6",
+      "better": true
+    }
   ]
 }

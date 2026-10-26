@@ -1,5 +1,5 @@
 ---
-description: Pianifica una task per sjck-graph prima di eseguirla — domande mirate, alternative con stime, ottimizzazioni, piano pronto per /sjck-run.
+description: Plan a task for sjck-graph before running it — targeted questions, alternatives with estimates, optimizations, a plan ready for /sjck-run.
 argument-hint: <task o percorso di una spec>
 ---
 Usa la skill `sjck-planning` per questa task: $ARGUMENTS

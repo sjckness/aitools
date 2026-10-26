@@ -7,12 +7,12 @@
     {
       "name": "sjck-graph",
       "source": "./sjck-graph",
-      "description": "Orchestrazione a grafo per gli agenti di Claude Code, con validazione tra gli step, watchdog, findings, critico, eval harness e visualizzatore live."
+      "description": "Graph orchestration for Claude Code agents: validation between steps, watchdog, findings, critic, eval harness and a live Run Viewer."
     },
     {
       "name": "sjck-onboard",
       "source": "./sjck-onboard",
-      "description": "Genera CLAUDE.md e mappa dei moduli, così Claude capisce il progetto senza esplorarlo."
+      "description": "Generates CLAUDE.md and a module map so Claude understands the project without exploring it."
     }
   ]
 }

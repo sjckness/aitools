@@ -1,5 +1,5 @@
 ---
-description: Lancia l'eval harness (evals/run.py) e, se richiesto, confronta due risultati.
+description: Run the eval harness (evals/run.py) and optionally compare two results.
 argument-hint: [--dry-run] [--task ID] [--cmd CMD] [--flags F] [--no-default-flags] [--out PATH]
 ---
 Se `evals/run.py` non esiste nella directory corrente, dillo e fermati

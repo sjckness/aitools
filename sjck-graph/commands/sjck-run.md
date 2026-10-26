@@ -1,5 +1,5 @@
 ---
-description: Avvia o riprende un run a grafo. Accetta override come "--mode M" o "usa solo scout e validator".
+description: Start or resume a graph run. Accepts overrides like "--mode M" or "only use scout and validator".
 argument-hint: <task> [--mode S|M|L] [agenti da usare]
 ---
 Usa la skill `sjck-orchestration` per questa task, rispettando ogni
