@@ -139,9 +139,25 @@ function changes(prev, cur) {
   if (prev.state.status !== cur.state.status) {
     if (cur.state.status === 'done') out.push({ level: 'info', text: 'sjck: run finished' });
     if (cur.state.status === 'failed') out.push({ level: 'error', text: 'sjck: run failed' });
-    if (cur.state.status === 'planned') out.push({ level: 'info', text: 'sjck: plan ready for review', action: 'plan' });
+  }
+  // A new plan: first one in the workspace, after another run, or a re-plan (new planned_at).
+  if (cur.state.status === 'planned' &&
+      (prev.state.status !== 'planned' || (cur.state.planned_at || '') !== (prev.state.planned_at || ''))) {
+    out.push({ level: 'info', text: planText(cur.state), action: 'plan' });
   }
   return out;
 }
 
-module.exports = { levels, icon, nodeDescription, nodeTooltip, statusText, waitingCount, decorations, decorationFor, changes, norm, k };
+// "sjck: plan ready — <goal> (5 nodes · mode L · ~120k–200k tokens)"
+function planText(s) {
+  const bits = [`${(s.nodes || []).length} nodes`];
+  if (s.mode) bits.push('mode ' + s.mode);
+  const t = s.estimate && s.estimate.tokens;
+  if (Array.isArray(t) && t.length === 2) bits.push(`~${k(t[0])}–${k(t[1])} tokens`);
+  return `sjck: plan ready${s.goal ? ' — ' + s.goal : ''} (${bits.join(' · ')})`;
+}
+
+// Stands in for "no .sjck/state.json yet", so the first plan is announced too.
+const EMPTY = Object.freeze({ state: Object.freeze({ status: 'none', nodes: Object.freeze([]) }) });
+
+module.exports = { levels, icon, nodeDescription, nodeTooltip, statusText, waitingCount, decorations, decorationFor, changes, planText, EMPTY, norm, k };

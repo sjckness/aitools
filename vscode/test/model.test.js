@@ -44,3 +44,16 @@ test('core helpers', () => {
   assert.match(core.viewerTemplate(), /__DATA__/);
   assert.deepEqual(core.changedByNode(DEMO, [{ id: 'T00' }]), {});
 });
+
+test('plan notifications: first plan, re-plan, not on unchanged state', () => {
+  const plan = (at) => ({ state: { status: 'planned', goal: 'Pac-Man', mode: 'L', planned_at: at, estimate: { tokens: [120000, 200000] }, nodes: [{ id: 'T1', status: 'pending' }] } });
+  const first = m.changes(m.EMPTY, plan('2026-10-26T21:00:00Z'));
+  assert.equal(first.length, 1);
+  assert.equal(first[0].action, 'plan');
+  assert.equal(first[0].text, 'sjck: plan ready — Pac-Man (1 nodes · mode L · ~120k–200k tokens)');
+  assert.equal(m.changes(plan('a'), plan('b')).length, 1, 're-plan with a new planned_at');
+  assert.deepEqual(m.changes(plan('a'), plan('a')), [], 'same plan: no repeat');
+  const done = { state: { status: 'done', nodes: [] } };
+  assert.equal(m.changes(done, plan('a'))[0].action, 'plan', 'new plan after a finished run');
+  assert.deepEqual(m.changes(null, plan('a')), [], 'nothing on the very first load');
+});

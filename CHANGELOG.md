@@ -1,5 +1,11 @@
 # Changelog
 
+## vscode 0.2.0 + planning interattivo — 2026-10-26
+- `/sjck-plan` è una conversazione: ogni scelta che cambia il piano passa da AskUserQuestion (domande iniziali se la task è vaga, scelta dell'alternativa, conferma delle ottimizzazioni che toccano lo scope, approvazione finale). In `claude -p` resta senza domande, con default dichiarati in `assumptions`.
+- Handoff all'estensione: dopo l'approvazione il planner scrive le card e per ultimo `state.json` (`status: "planned"`, nuovo campo `planned_at`). L'estensione lo vede col file watcher, apre la vista sjck e notifica "plan ready" con nodi, modalità e stima token → *Approve and run*.
+- Estensione: si attiva all'avvio (anche in workspace senza `.sjck/`), annuncia il primo piano e ogni ri-piano (`planned_at` diverso), *Plan a task* apre `claude "/sjck-plan …"` interattivo in un terminale (`sjck.plan.interactive`, default on), *Approve and run* usa la modalità del piano senza richiederla. Nuova impostazione `sjck.revealOnPlan`.
+- Verifiche: 113 test plugin, 16 console, 6 estensione (nuovi: notifiche primo piano/ri-piano, comando Plan interattivo); type-check ok. Non ancora provata dentro un VS Code reale.
+
 ## vscode 0.1.0 — 2026-10-26
 - Estensione VS Code nativa (`vscode/`): vista Graph nell'activity bar (livelli e nodi con stato, modello/effort, tool call vs budget, tentativi, token; card al clic; diff dei file cambiati da un nodo), barra di stato, decorazioni nell'Explorer, Run Viewer in una tab (CSP con nonce), chat col planner nella sidebar, Inbox con approvazioni, Plan/Run/Stop con log nell'output, notifiche.
 - Riusa i moduli della console (`data`, `inbox`, `runner`, `chat`), copiati in `lib/` al packaging; non scrive mai lo stato del run.

@@ -27,7 +27,7 @@ const vscode = {
   Uri: { file: (p) => ({ scheme: 'file', fsPath: p }) },
   workspace: {
     workspaceFolders: [{ uri: { fsPath: ws } }],
-    getConfiguration: () => ({ get: (k) => ({ decorations: true, notifications: true, 'claude.path': 'claude', 'claude.runArgs': [] }[k]) }),
+    getConfiguration: () => ({ get: (k) => ({ decorations: true, notifications: true, revealOnPlan: true, 'plan.interactive': true, 'claude.path': 'claude', 'claude.runArgs': [] }[k]) }),
     createFileSystemWatcher: () => ({ onDidChange() {}, onDidCreate() {}, onDidDelete() {}, dispose() {} }),
     onDidChangeConfiguration: () => ({ dispose() {} }),
   },
@@ -37,6 +37,9 @@ const vscode = {
     createTreeView: (id, o) => (rec.trees[id] = { provider: o.treeDataProvider, dispose() {} }),
     registerFileDecorationProvider: (p) => { rec.decoProvider = p; return { dispose() {} }; },
     registerWebviewViewProvider: () => ({ dispose() {} }),
+    createTerminal: (o) => { rec.terminal = o; return { show() {}, dispose() {} }; },
+    showInputBox: async () => 'make a pacman minigame',
+    showQuickPick: async (items) => items[3],
     createWebviewPanel: () => {
       const p = { webview: { html: '', cspSource: 'vscode-resource:', onDidReceiveMessage() {} }, onDidDispose() {}, reveal() {} };
       rec.panels.push(p);
@@ -96,6 +99,11 @@ test('activate wires views, status bar, decorations, viewer and inbox actions', 
   assert.match(html, /Content-Security-Policy/);
   const scripts = html.match(/<script[^>]*>/g);
   assert.ok(scripts.length >= 3 && scripts.every((s) => /nonce="/.test(s)), 'every script carries the nonce');
+
+  await rec.commands['sjck.plan']();
+  assert.equal(rec.terminal.cwd, ws, 'planner chat runs in the workspace');
+  const argv = rec.terminal.shellArgs;
+  assert.equal(argv[argv.length - 1], '/sjck-plan make a pacman minigame --mode L', 'interactive /sjck-plan, prompt as one argument');
 
   ext.deactivate();
   fs.rmSync(ws, { recursive: true, force: true });

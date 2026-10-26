@@ -14,19 +14,34 @@ scelte in modo semplice.
 Non scrivi codice. Scrivi solo in `.sjck/` e, se l'utente lo vuole, una spec
 in `docs/specs/`.
 
-## Fase 1 — Capire (al massimo 2 giri di domande)
+## Interattività (regola generale)
+La pianificazione è una CONVERSAZIONE con l'utente nella sessione di Claude
+Code: ogni decisione che cambia il piano passa da lui. Ogni domanda va fatta
+con il tool **AskUserQuestion** (1-4 domande a scelta multipla per volta,
+opzione consigliata per prima con "(Recommended)"), mai come elenco di
+domande in prosa. Tra un giro e l'altro mostra cosa è cambiato in 1-3 righe.
+- Sessione non interattiva (`claude -p`, o AskUserQuestion non disponibile):
+  niente domande; scegli i default ragionevoli, elencali in `assumptions`
+  nello stato e prosegui fino alla Fase 4.
+- Se l'utente risponde "vai coi default" o simile, smetti di chiedere e
+  completa il piano.
+
+## Fase 1 — Capire
 1. Leggi CLAUDE.md e `.claude/map/` se esistono. Se mancano e la task tocca
    più moduli, proponi `/sjck-onboard` in una riga: senza mappa ogni nodo paga
    l'esplorazione.
 2. Ricognizione economica: al massimo 5 Grep/Glob per capire quali moduli e
    file sono coinvolti. Non leggere file interi.
-3. Fai SOLO le domande la cui risposta cambia il piano, in un'unica
-   domanda a scelta multipla (1-4 domande). Tipiche:
+3. Se la richiesta è vaga o sotto-specificata, chiedi PRIMA di stimare
+   (AskUserQuestion). Fai solo le domande la cui risposta cambia il piano.
+   Tipiche:
+   - dove deve vivere il risultato (cartella, linguaggio, piattaforma);
    - cosa conta di più: costo, velocità o rischio minimo;
    - come si verifica il risultato (test esistenti? comando? controllo a mano?);
    - cosa è fuori scope;
    - parti delicate (hardware, parametri tarati, API pubbliche).
-   Se l'utente non c'è, scegli il default ragionevole e scrivilo.
+   Al massimo 3 giri di domande in questa fase; se resta ambiguità, scegli e
+   dichiaralo come assunzione.
 
 ## Fase 2 — Proporre (sempre almeno 2 alternative)
 Per ogni alternativa mostra una riga di tabella:
@@ -43,6 +58,8 @@ Per ogni alternativa mostra una riga di tabella:
 - Il tempo segue il percorso critico, non il numero di nodi.
 - Proponi sempre anche la versione più piccola sensata (spesso M), così
   l'utente vede cosa compra il parallelismo.
+- Dopo la tabella fai scegliere l'alternativa con AskUserQuestion (una
+  opzione per riga della tabella, più "Modifica…" per indicazioni libere).
 
 ## Fase 3 — Ottimizzare (spiega ogni suggerimento in una riga)
 Passa il piano scelto attraverso questa checklist e applica ciò che conviene:
@@ -67,18 +84,27 @@ Passa il piano scelto attraverso questa checklist e applica ciò che conviene:
 
 Mostra il DAG finale in testo (livelli → nodi) e un riepilogo dei risparmi:
 "rispetto alla prima versione: −2 nodi, percorso critico 5→3, ~−60k token".
+Se un'ottimizzazione cambia il comportamento visibile o lo scope (non solo
+il costo), chiedi conferma con AskUserQuestion prima di applicarla.
 
-## Fase 4 — Consegnare il piano
-Quando l'utente approva (o, se non c'è, con le scelte di default dichiarate):
-1. Scrivi `.sjck/state.json` con lo schema di `sjck-orchestration`,
+## Fase 4 — Approvare e passare all'estensione
+1. Chiedi l'approvazione finale con AskUserQuestion: "Approva il piano"
+   (Recommended) · "Modifica un nodo…" · "Rivedi le alternative" · "Annulla".
+   Su "Modifica"/"Rivedi" torna alla fase giusta; su "Annulla" non scrivere
+   nulla. Senza utente (sessione non interattiva) vale come approvato.
+2. Scrivi `.sjck/state.json` con lo schema di `sjck-orchestration`,
    `status: "planned"`, `mode`, `mode_reason`, e per ogni nodo `model`,
-   `effort`, `budget`, `files`, `deps`. Aggiungi `"planned_by": "sjck-planning"`
-   e `"estimate": {"tokens": [min, max], "critical_path": N}`.
-2. Scrivi una card per nodo in `.sjck/cards/<ID>.md` (schema della skill di
-   esecuzione, con `## Fuori scope`).
-3. Se l'utente lo chiede, salva anche il piano leggibile in
+   `effort`, `budget`, `files`, `deps`. Aggiungi `"planned_by": "sjck-planning"`,
+   `"planned_at": "<ISO 8601 UTC, ora>"` e
+   `"estimate": {"tokens": [min, max], "critical_path": N}`.
+   Scrivi state.json per ULTIMO, dopo le card: è il segnale che l'estensione
+   VS Code osserva per prendere in carico il piano.
+3. Prima di state.json, scrivi una card per nodo in `.sjck/cards/<ID>.md`
+   (schema della skill di esecuzione, con `## Fuori scope`).
+4. Se l'utente lo chiede, salva anche il piano leggibile in
    `docs/specs/<nome>.md`, così resta nel repo.
-4. Chiudi con una riga: "Piano pronto: lancia `/sjck-run` per eseguirlo."
+5. Chiudi con due righe: "Piano pronto: l'estensione sjck in VS Code lo mostra
+   ora (Approve and run). Senza estensione: `/sjck-run`."
    Non avviare l'esecuzione da solo.
 
 ## Regole

@@ -17,6 +17,7 @@ let runner = null;
 let chat = null;
 let output = null;
 let refreshTimer = null;
+let loaded = false;      // first refresh done: later ones may announce a first plan
 
 function workspaceRoot() {
   const folders = vscode.workspace.workspaceFolders || [];
@@ -233,7 +234,8 @@ async function activate(context) {
 
   function refresh() {
     if (!root) return;
-    const prev = data;
+    const prev = data || (loaded ? model.EMPTY : null);
+    loaded = true;
     data = mods.data.collect(root);
     inbox = data ? mods.inbox.inbox(root, data.findings) : null;
     changed = data ? core.changedByNode(root, data.state.nodes) : {};
@@ -250,6 +252,9 @@ async function activate(context) {
     if (viewerPanel && data) viewerPanel.webview.html = viewerHtml(viewerPanel.webview);
     if (vscode.workspace.getConfiguration('sjck').get('notifications')) {
       for (const n of model.changes(prev, data)) {
+        if (n.action === 'plan' && vscode.workspace.getConfiguration('sjck').get('revealOnPlan')) {
+          vscode.commands.executeCommand('workbench.view.extension.sjck');
+        }
         const show = n.level === 'error' ? vscode.window.showErrorMessage : n.level === 'warn' ? vscode.window.showWarningMessage : vscode.window.showInformationMessage;
         const actions = n.action === 'plan' ? ['Review', 'Approve and run'] : ['Open'];
         show(n.text, ...actions).then((a) => {
@@ -282,7 +287,32 @@ async function activate(context) {
   chat.on('delta', (_p, d) => chatView.post({ type: 'delta', ...d }));
   chat.on('done', (_p, m) => { chatView.post({ type: 'done', message: m }); scheduleRefresh(); });
 
-  async function start(kind, preset) {
+  // Planning is a conversation: run `claude "/sjck-plan …"` interactively in a terminal.
+  // When the plan is approved it writes .sjck/state.json and the watcher takes over.
+  async function planInTerminal() {
+    if (!root) return vscode.window.showWarningMessage('sjck: open a folder first.');
+    const task = await vscode.window.showInputBox({
+      title: 'sjck: plan a task', prompt: 'What should the graph do? The planner will ask you the rest.',
+      placeHolder: 'Add load/start/abort services to mission_manager_node', ignoreFocusOut: true,
+    });
+    if (!task || !task.trim()) return;
+    const pick = await vscode.window.showQuickPick([
+      { label: 'auto', description: 'let the planner propose' }, { label: 'S', description: 'inline' },
+      { label: 'M', description: 'short chain' }, { label: 'L', description: 'parallel DAG' }], { title: 'Mode', ignoreFocusOut: true });
+    if (!pick) return;
+    const prompt = ['/sjck-plan', task.trim().replace(/\s+/g, ' '), pick.label === 'auto' ? '' : `--mode ${pick.label}`].filter(Boolean).join(' ');
+    const { bin } = claudeConfig();
+    const win = process.platform === 'win32';
+    const term = vscode.window.createTerminal({
+      name: 'sjck plan', cwd: root, iconPath: new vscode.ThemeIcon('lightbulb'),
+      shellPath: win ? (process.env.ComSpec || 'cmd.exe') : bin,
+      shellArgs: win ? ['/d', '/c', bin, prompt] : [prompt],
+    });
+    context.subscriptions.push(term);
+    term.show();
+  }
+
+  async function start(kind, preset, presetMode) {
     if (!root) return vscode.window.showWarningMessage('sjck: open a folder first.');
     let task = preset;
     if (task === undefined) {
@@ -295,14 +325,19 @@ async function activate(context) {
       if (task === undefined) return;
     }
     if (kind === 'plan' && !task.trim()) return vscode.window.showWarningMessage('sjck: write a task to plan.');
+    if (presetMode !== undefined) return launch(kind, task, presetMode);
     const pick = await vscode.window.showQuickPick([
       { label: 'auto', description: 'let the kit choose' }, { label: 'S', description: 'inline' },
       { label: 'M', description: 'short chain' }, { label: 'L', description: 'parallel DAG' }], { title: 'Mode', ignoreFocusOut: true });
     if (!pick) return;
+    return launch(kind, task, pick.label === 'auto' ? '' : pick.label);
+  }
+
+  function launch(kind, task, mode) {
     try {
       output.clear();
       output.show(true);
-      runner.start(project(), { task, kind, mode: pick.label === 'auto' ? '' : pick.label }, claudeConfig());
+      runner.start(project(), { task, kind, mode }, claudeConfig());
       refresh();
     } catch (e) {
       vscode.window.showErrorMessage(`sjck: ${e.message}`);
@@ -323,9 +358,10 @@ async function activate(context) {
   }
 
   const reg = (id, fn) => context.subscriptions.push(vscode.commands.registerCommand(id, fn));
-  reg('sjck.plan', () => start('plan'));
+  reg('sjck.plan', () => (vscode.workspace.getConfiguration('sjck').get('plan.interactive') === false ? start('plan') : planInTerminal()));
   reg('sjck.run', () => start('run'));
-  reg('sjck.approvePlan', () => start('run', ''));
+  // The approved plan already carries its mode: no second question.
+  reg('sjck.approvePlan', () => start('run', '', (data && data.state.mode) || ''));
   reg('sjck.stop', () => { runner.stop('vscode'); });
   reg('sjck.refresh', refresh);
   reg('sjck.openViewer', openViewer);

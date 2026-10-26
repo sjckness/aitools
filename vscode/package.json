@@ -2,7 +2,7 @@
   "name": "sjck",
   "displayName": "sjck — agent graph for Claude Code",
   "description": "Watch and steer sjck agent-graph runs inside VS Code: live node tree, status bar, file decorations, Run Viewer, planner chat and an inbox for findings and change requests.",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "publisher": "sjckness",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -18,6 +18,7 @@
   "keywords": ["claude", "claude code", "agents", "dag", "orchestration"],
   "main": "./extension.js",
   "activationEvents": [
+    "onStartupFinished",
     "workspaceContains:.sjck/state.json",
     "workspaceContains:.claude/sjck-scripts",
     "onView:sjck.graph"
@@ -101,6 +102,11 @@
           "default": "claude",
           "description": "Claude Code CLI used for Plan, Run and the planner chat."
         },
+        "sjck.plan.interactive": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "**Plan a task** opens an interactive Claude Code session (`/sjck-plan`) in a terminal, so the planner can ask you questions. When you approve, the plan is written to `.sjck/` and this extension takes over the run. Turn off to plan headless (`claude -p`: no questions, defaults chosen for you)."
+        },
         "sjck.claude.runArgs": {
           "type": "array",
           "items": { "type": "string" },
@@ -116,6 +122,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show a notification when a node fails or blocks, a run ends or a plan is ready."
+        },
+        "sjck.revealOnPlan": {
+          "type": "boolean",
+          "default": true,
+          "description": "When a new plan is written (e.g. approved in /sjck-plan), open the sjck views to review and run it."
         }
       }
     }
