@@ -1,0 +1,8 @@
+{
+  "name": "graph-kit",
+  "version": "0.1.0",
+  "description": "Orchestrazione a grafo per gli agenti di Claude Code: triage automatico S/M/L, validazione tra gli step, stato persistente.",
+  "author": { "name": "Andreas Steffens" },
+  "license": "MIT",
+  "keywords": ["agents", "orchestration", "dag", "subagents"]
+}

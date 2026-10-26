@@ -1,0 +1,11 @@
+{
+  "name": "graph-kit",
+  "owner": { "name": "Andreas Steffens" },
+  "plugins": [
+    {
+      "name": "graph-kit",
+      "source": "./graph-kit",
+      "description": "Orchestrazione a grafo per gli agenti di Claude Code."
+    }
+  ]
+}
