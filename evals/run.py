@@ -19,8 +19,8 @@ METRIC_KEYS = ["subagents", "validator_fails", "tool_calls", "watchdog_warnings"
                "watchdog_stops", "findings", "findings_accepted", "duration_s"]
 TRAPS = {"rabbit_hole", "out_of_scope_bug"}
 SIZES = {"S", "M", "L"}
-DEFAULT_CMD = 'claude -p "/run-graph {task}"'
-PLUGIN_DIR = os.path.join(os.path.dirname(HERE), "graph-kit")
+DEFAULT_CMD = 'claude -p "/sjck-run {task}"'
+PLUGIN_DIR = os.path.join(os.path.dirname(HERE), "sjck-graph")
 
 
 def default_flags():
@@ -112,7 +112,7 @@ def git(args, cwd):
 
 
 def read_state(work):
-    path = os.path.join(work, ".graph", "state.json")
+    path = os.path.join(work, ".sjck", "state.json")
     if not os.path.isfile(path):
         return {}, None
     try:

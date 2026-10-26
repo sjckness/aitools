@@ -1,4 +1,4 @@
-.graph/
+.sjck/
 __pycache__/
 evals/results/
-examples/demo/.graph/view.html
+examples/demo/.sjck/view.html

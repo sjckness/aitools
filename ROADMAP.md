@@ -2,7 +2,7 @@
 
 ## v0.2 — misurare
 - [ ] Metriche per run: token per agente, durata, tentativi, modalità scelta
-- [ ] Script che aggrega `.graph/archive/*/state.json` in una tabella
+- [ ] Script che aggrega `.sjck/archive/*/state.json` in una tabella
 - [x] Suite di task di riferimento (S, M, L) per confrontare le versioni
 
 ## v0.3 — agenti più forti
@@ -14,7 +14,7 @@
 - [ ] Spec: `docs/specs/v0.4-token-analytics.md` (consumo reale dai transcript, costo, dove si risparmia, baseline senza kit, token visualizer)
 
 ## v0.5 — memoria tra run
-- [ ] `.graph/lessons.md`: errori ricorrenti del validator, letti dal planner
+- [ ] `.sjck/lessons.md`: errori ricorrenti del validator, letti dal planner
 - [ ] Interfacce estratte dallo scout riusate tra run se il file non è cambiato
 
 ## Oltre

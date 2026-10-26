@@ -1,0 +1,8 @@
+{
+  "name": "sjck-graph",
+  "version": "0.3.1",
+  "description": "Orchestrazione a grafo per gli agenti di Claude Code: triage S/M/L, validazione tra gli step, stato persistente, watchdog, findings, critico, /sjck-plan e Run Viewer.",
+  "author": { "name": "Andreas Steffens" },
+  "license": "MIT",
+  "keywords": ["agents", "orchestration", "dag", "subagents"]
+}

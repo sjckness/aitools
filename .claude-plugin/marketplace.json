@@ -1,17 +1,17 @@
 {
-  "name": "aitools",
+  "name": "sjck",
   "owner": {
     "name": "Andreas Steffens"
   },
   "plugins": [
     {
-      "name": "graph-kit",
-      "source": "./graph-kit",
+      "name": "sjck-graph",
+      "source": "./sjck-graph",
       "description": "Orchestrazione a grafo per gli agenti di Claude Code, con validazione tra gli step, watchdog, findings, critico, eval harness e visualizzatore live."
     },
     {
-      "name": "project-onboard",
-      "source": "./project-onboard",
+      "name": "sjck-onboard",
+      "source": "./sjck-onboard",
       "description": "Genera CLAUDE.md e mappa dei moduli, così Claude capisce il progetto senza esplorarlo."
     }
   ]

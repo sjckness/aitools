@@ -1,13 +1,13 @@
 # evals
 
-Suite di task di riferimento per misurare `/run-graph` (spec v0.3, sezione F).
+Suite di task di riferimento per misurare `/sjck-run` (spec v0.3, sezione F).
 Solo Python standard library.
 
 ## Struttura di una task
 
 ```
 evals/tasks/<id>/
-  task.md      prompt passato a /run-graph
+  task.md      prompt passato a /sjck-run
   repo/        fixture minima e autonoma (nessun ROS richiesto)
   check.sh     exit 0 = task risolta; eseguito come `bash <taskdir>/check.sh`
                con cwd = copia di lavoro di repo/
@@ -32,7 +32,7 @@ python3 evals/run.py [--task ID ...] [--cmd CMD] [--flags F] [--timeout S] [--ou
 python3 evals/compare.py A.json B.json         # tabella markdown A -> B
 ```
 
-`--cmd` default: `claude -p "/run-graph {task}"` (`{task}` = contenuto di
+`--cmd` default: `claude -p "/sjck-run {task}"` (`{task}` = contenuto di
 task.md, `{task_file}` = suo percorso). Risultati in `evals/results/<timestamp>.json`.
 
 ## Flag di default
@@ -40,7 +40,7 @@ task.md, `{task_file}` = suo percorso). Risultati in `evals/results/<timestamp>.
 Se non passi `--no-default-flags`, dopo il comando `run.py` aggiunge:
 
 ```
---plugin-dir <repo>/graph-kit --permission-mode acceptEdits --allowedTools Bash
+--plugin-dir <repo>/sjck-graph --permission-mode acceptEdits --allowedTools Bash
 ```
 
 (`<repo>` = cartella padre di `evals/`, percorso assoluto). Motivi: `--plugin-dir` fa testare il
@@ -53,5 +53,5 @@ In `claude -p` la skill segue la regola "sessione non interattiva"
 (`reference/findings.md` e `reference/critic.md`): i checkpoint dei findings vanno tutti in
 `deferred`, e un disaccordo col critico si risolve con la proposta dell'orchestratore.
 
-Nota: se graph-kit e' installato anche dal marketplace, disabilitalo durante le eval, per non
+Nota: se sjck-graph e' installato anche dal marketplace, disabilitalo durante le eval, per non
 avere due copie del plugin.

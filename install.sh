@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Installazione senza plugin: copia agenti e comandi in un progetto o globalmente.
-#   curl -fsSL https://raw.githubusercontent.com/sjckness/aitools/main/install.sh | bash            # progetto corrente
-#   curl -fsSL https://raw.githubusercontent.com/sjckness/aitools/main/install.sh | bash -s -- -g  # globale (~/.claude)
+#   curl -fsSL https://raw.githubusercontent.com/sjckness/sjck/main/install.sh | bash            # progetto corrente
+#   curl -fsSL https://raw.githubusercontent.com/sjckness/sjck/main/install.sh | bash -s -- -g  # globale (~/.claude)
 set -euo pipefail
 
-REPO="${GRAPH_KIT_REPO:-sjckness/aitools}"
-REF="${GRAPH_KIT_REF:-main}"
+REPO="${SJCK_REPO:-sjckness/sjck}"
+REF="${SJCK_REF:-main}"
 DEST="./.claude"
 [[ "${1:-}" == "-g" || "${1:-}" == "--global" ]] && DEST="$HOME/.claude"
 
@@ -22,14 +22,14 @@ copy() {  # copia un file; .bak solo se la destinazione esiste e differisce dal 
   cp "$1" "$stage"
   # senza plugin ${CLAUDE_PLUGIN_ROOT} non esiste: punta agli script copiati (percorso assoluto)
   if [[ "$2" == *.md ]]; then
-    sed "s#\${CLAUDE_PLUGIN_ROOT}/scripts#$abs_dest/aitools-scripts#g" "$stage" > "$stage.out" && mv "$stage.out" "$stage"
+    sed "s#\${CLAUDE_PLUGIN_ROOT}/scripts#$abs_dest/sjck-scripts#g" "$stage" > "$stage.out" && mv "$stage.out" "$stage"
   fi
   [[ -e "$2" ]] && ! cmp -s "$stage" "$2" && cp "$2" "$2.bak"
   cp "$stage" "$2"
   rm -f "$stage"
 }
 
-for plugin in graph-kit project-onboard; do
+for plugin in sjck-graph sjck-onboard; do
   src="$root/$plugin"
   [[ -d "$src" ]] || continue
   for d in agents commands; do
@@ -42,9 +42,9 @@ for plugin in graph-kit project-onboard; do
     done
   fi
   if [[ -d "$src/scripts" ]]; then
-    for f in "$src/scripts"/*; do [[ -f "$f" ]] && copy "$f" "$DEST/aitools-scripts/$(basename "$f")"; done
+    for f in "$src/scripts"/*; do [[ -f "$f" ]] && copy "$f" "$DEST/sjck-scripts/$(basename "$f")"; done
   fi
 done
 
-echo "aitools installato in $DEST"
-echo "Comandi: /onboard, /run-graph <task>, /graph-status, /graph-view, /graph-eval"
+echo "sjck installato in $DEST"
+echo "Comandi: /sjck-onboard, /sjck-run <task>, /sjck-status, /sjck-view, /sjck-eval"
