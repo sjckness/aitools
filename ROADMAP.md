@@ -10,6 +10,9 @@
 - [x] Hook che blocca le scritture fuori dai `files` della card
 - [ ] Planner che stima il costo del DAG e lo confronta con la modalità M
 
+## Prossimo — live change requests
+- [ ] Spec: `docs/specs/change-requests.md` (`/sjck-change` in una sessione separata, CR in `.sjck/changes/`, applicati dall'orchestratore a run in corso)
+
 ## v0.4 — token analytics
 - [ ] Spec: `docs/specs/v0.4-token-analytics.md` (consumo reale dai transcript, costo, dove si risparmia, baseline senza kit, token visualizer)
 
