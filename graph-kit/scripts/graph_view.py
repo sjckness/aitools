@@ -14,6 +14,16 @@ import os
 import sys
 import webbrowser
 
+try:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from state_schema import normalize
+except Exception:  # fallback: stato usato così com'è
+    normalize = None
+try:
+    import watchdog
+except Exception:  # nessun overlay della usage
+    watchdog = None
+
 COLORS = {
     "pending": "#9aa0a6", "running": "#3b82f6", "done": "#a855f7",
     "validated": "#16a34a", "blocked": "#f59e0b", "failed": "#dc2626",
@@ -34,13 +44,15 @@ h1{font-size:18px;margin:0 0 4px}.mut{color:var(--mut)}
 .pill{padding:2px 10px;border-radius:999px;color:#fff;font-size:12px}
 .box{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;margin:12px 0;overflow-x:auto}
 table{border-collapse:collapse;width:100%}td,th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;font-size:13px}
+h2{font-size:14px;margin:0 0 6px}
 pre{margin:0;font-size:12px;white-space:pre-wrap}
 </style></head><body>
 <h1>__GOAL__</h1>
 <div class="mut">modalità <b>__MODE__</b> · __REASON__ · stato <b>__STATUS__</b> · aggiornato __UPDATED__</div>
 <div class="bar">__COUNTS__</div>
 <div class="box"><pre class="mermaid">__MERMAID__</pre></div>
-<div class="box"><table><tr><th>id</th><th>titolo</th><th>agente</th><th>stato</th><th>tentativi</th><th>deps</th></tr>__ROWS__</table></div>
+<div class="box"><table><tr><th>id</th><th>titolo</th><th>agente</th><th>stato</th><th>tentativi</th><th>deps</th><th>model/effort</th><th>usage</th><th>drift r/w</th><th>watchdog warn/stop</th></tr>__ROWS__</table></div>
+__PANELS__
 <div class="box"><b>Log</b><pre>__LOG__</pre></div>
 <div class="mut">metriche: __METRICS__</div>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
@@ -72,11 +84,104 @@ def node_label(n):
     return '%s["%s<br/>%s"]' % (n["id"], n["id"], title)
 
 
+NODATA = '<span class="mut">nessun dato</span>'
+
+
+def read_jsonl(path):
+    out = []
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    o = json.loads(line)
+                except Exception:
+                    continue
+                if isinstance(o, dict):
+                    out.append(o)
+    except OSError:
+        pass
+    return out
+
+
+def esc(v):
+    return html.escape(str(v))
+
+
+def panel(title, body):
+    return '<div class="box"><h2>%s</h2>%s</div>' % (esc(title), body or NODATA)
+
+
+def table(head, rows):
+    if not rows:
+        return ""
+    return "<table><tr>%s</tr>%s</table>" % (
+        "".join("<th>%s</th>" % esc(h) for h in head),
+        "".join("<tr>%s</tr>" % "".join("<td>%s</td>" % c for c in r) for r in rows))
+
+
+def panels(s, root):
+    g = os.path.join(root, ".graph")
+    ps = s.get("plan_score")
+    body = ""
+    if isinstance(ps, dict) and ps:
+        body = table(["width", "critical_path", "file_overlap", "avg_card_tokens", "verdict", "reasons"],
+                     [[esc(ps.get(k, "")) for k in ("width", "critical_path", "file_overlap",
+                                                    "avg_card_tokens", "verdict")]
+                      + [esc("; ".join(str(x) for x in (ps.get("reasons") or [])))]])
+    out = [panel("Plan score", body)]
+
+    last = {}
+    for c in s.get("critic") or []:
+        if isinstance(c, dict):
+            last[c.get("at", "?")] = c
+    out.append(panel("Critico", table(
+        ["at", "round", "verdict", "points", "resolution"],
+        [[esc(a), esc(c.get("round", "")), esc(c.get("verdict", "")),
+          esc("; ".join(str(x) for x in (c.get("points") or []))), esc(c.get("resolution", ""))]
+         for a, c in last.items()])))
+
+    fs = read_jsonl(os.path.join(g, "findings.jsonl"))
+    cnt = {}
+    for f in fs:
+        cnt[f.get("status", "?")] = cnt.get(f.get("status", "?"), 0) + 1
+    body = ""
+    if fs:
+        body = ('<div class="mut">%s</div>' % esc(", ".join("%s: %d" % kv for kv in cnt.items()))
+                + table(["id", "severity", "kind", "file", "what", "status", "placement"],
+                        [[esc(f.get("id", "")), esc(f.get("severity", "")), esc(f.get("kind", "")),
+                          esc(f.get("file", "")), esc(str(f.get("what", ""))[:80]),
+                          esc(f.get("status", "")), esc(f.get("placement", ""))] for f in fs]))
+    out.append(panel("Findings", body))
+
+    ev = read_jsonl(os.path.join(g, "watchdog.jsonl"))[-10:]
+    out.append(panel("Watchdog", table(
+        ["ts", "node", "kind", "level", "action", "detail"],
+        [[esc(e.get("ts", "")), esc(e.get("node", "")), esc(e.get("kind", "")),
+          esc(e.get("level", "")), esc(e.get("action", "")), esc(e.get("detail", ""))]
+         for e in ev])))
+    return "\n".join(out)
+
+
 def render(root):
     state_path = os.path.join(root, ".graph", "state.json")
     with open(state_path, encoding="utf-8") as f:
         s = json.load(f)
-    nodes = s.get("nodes", [])
+    if normalize is not None:
+        try:
+            s = normalize(s)
+        except Exception:
+            pass
+    nodes = [n for n in (s.get("nodes") or []) if isinstance(n, dict)]
+    if watchdog is not None:
+        try:
+            with open(os.path.join(root, ".graph", "watchdog_state.json"),
+                      encoding="utf-8") as f:
+                um = watchdog.usage_map(
+                    json.load(f), [n["id"] for n in nodes if "id" in n])
+            nodes = [dict(n, usage=um[n["id"]]) if n.get("id") in um else n
+                     for n in nodes]
+        except Exception:
+            pass
 
     lines = ["flowchart LR"]
     for n in nodes:
@@ -94,13 +199,20 @@ def render(root):
         '<span class="pill" style="background:%s">%s %d</span>'
         % (COLORS.get(k, "#9aa0a6"), html.escape(k), v) for k, v in counts.items())
 
-    rows = "".join(
-        "<tr><td>%s</td><td>%s</td><td>%s</td>"
-        '<td><span class="pill" style="background:%s">%s</span></td><td>%s</td><td>%s</td></tr>'
-        % (html.escape(n["id"]), html.escape(str(n.get("title", ""))),
-           html.escape(str(n.get("agent", ""))), COLORS.get(n.get("status"), "#9aa0a6"),
-           html.escape(str(n.get("status", ""))), n.get("attempts", 0),
-           html.escape(", ".join(n.get("deps", [])))) for n in nodes)
+    def row(n):
+        b = n.get("budget") if isinstance(n.get("budget"), dict) else {}
+        u = n.get("usage") if isinstance(n.get("usage"), dict) else {}
+        cells = [esc(n.get("id", "")), esc(n.get("title", "")), esc(n.get("agent", "")),
+                 '<span class="pill" style="background:%s">%s</span>'
+                 % (COLORS.get(n.get("status"), "#9aa0a6"), esc(n.get("status", ""))),
+                 esc(n.get("attempts", 0)), esc(", ".join(n.get("deps", []))),
+                 esc("%s/%s" % (n.get("model", "inherit"), n.get("effort", "medium"))),
+                 esc("%s/%s" % (u.get("tool_calls", 0), b.get("tool_calls", 40))),
+                 esc("%s/%s" % (u.get("reads_outside_card", 0), u.get("writes_outside_card", 0))),
+                 esc("%s/%s" % (u.get("watchdog_warnings", 0), u.get("watchdog_stops", 0)))]
+        return "<tr>%s</tr>" % "".join("<td>%s</td>" % c for c in cells)
+
+    rows = "".join(row(n) for n in nodes)
 
     import datetime
     out = (PAGE
@@ -112,6 +224,7 @@ def render(root):
            .replace("__COUNTS__", pills)
            .replace("__MERMAID__", html.escape("\n".join(lines)))
            .replace("__ROWS__", rows)
+           .replace("__PANELS__", panels(s, root))
            .replace("__LOG__", html.escape("\n".join(s.get("log", [])[-30:])))
            .replace("__METRICS__", html.escape(json.dumps(s.get("metrics", {})))))
     view = os.path.join(root, ".graph", "view.html")

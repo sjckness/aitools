@@ -21,10 +21,20 @@ riga in `mode_reason`. Unica eccezione: senza validator un nodo non diventa
 ## Step 0 — Setup e ripresa
 - Se .graph/ non esiste, crea .graph/{cards,out,interfaces,archive}/ e
   aggiungi `.graph/` al .gitignore del repo, se manca.
+- Script (plan_score, findings, watchdog): una volta sola, `<script>` = la prima
+  cartella che contiene `plan_score.py` (`test -f <cartella>/plan_score.py`), resa assoluta, tra:
+  `${CLAUDE_PLUGIN_ROOT}/scripts` (se espanso o non vuota in Bash); `<base dir della skill>/../../scripts`;
+  `~/.claude/aitools-scripts`; `.claude/aitools-scripts`. Scrivi nel log `HH:MM script: <abs>`.
+  Nessuna trovata → fermati e dillo all'utente. Metti la riga `script: <abs>` nel prompt di
+  OGNI agente (dettagli: reference/scripts.md).
+- Sessione non interattiva (`claude -p`, o AskUserQuestion non disponibile): niente domande,
+  segui le regole di reference/findings.md e reference/critic.md; ogni altro
+  "chiedi all'utente" diventa run `failed` con il motivo nel log.
 - Se esiste .graph/state.json con `status: running`, NON ripianificare:
   riprendi dal primo nodo non `validated` (Step 3).
-- Se esiste con `status: done|failed`, sposta state.json, cards/ e out/ in
-  .graph/archive/<YYYYMMDD-HHMM>/ e riparti.
+- Se esiste con `status: done|failed`, sposta state.json, cards/, out/,
+  findings.jsonl, watchdog.jsonl e watchdog_state.json in
+  .graph/archive/<YYYYMMDD-HHMM>/ e riparti. `backlog.md` resta.
 - Leggi CLAUDE.md e .claude/map/ (se esistono) SOLO per scegliere i file
   rilevanti: non copiarli nelle card, cita i percorsi.
 
@@ -52,12 +62,17 @@ Scrivi .graph/state.json (JSON valido, 2 spazi di indentazione):
   "started": "ISO-8601",
   "nodes": [
     {"id": "T01", "title": "", "agent": "self|scout|implementer",
-     "deps": [], "files": [], "status": "pending", "attempts": 0, "agent_id": ""}
+     "deps": [], "files": [], "status": "pending", "attempts": 0, "agent_id": "",
+     "model": "inherit", "effort": "medium",
+     "budget": {"tool_calls": 40, "context_tokens": 2000}}
   ],
   "log": ["HH:MM T01 pending → running"],
   "metrics": {"subagents": 0, "validator_fails": 0}
 }
 ```
+`model`, `effort`, `budget` sono opzionali (default sopra). Campi che scrivi tu
+nel corso del run (`plan_score`, `critic`, `checkpoints`, metriche nuove, `usage`,
+`assumptions`): reference/scripts.md.
 Stati nodo: pending → running → done → validated (oppure blocked, failed,
 done-unverified).
 
@@ -68,6 +83,7 @@ Ogni card in .graph/cards/<ID>.md:
 ## Puoi modificare
 ## Leggi
 ## Criteri di accettazione   (comando + esito atteso, o condizione sul diff)
+## Fuori scope              (cosa il nodo NON deve sistemare: lo annota nei findings)
 ## Correzioni richieste      (vuota; la compili coi findings del validator)
 ```
 
@@ -76,24 +92,48 @@ Ogni card in .graph/cards/<ID>.md:
 - L: lancia `planner` passandogli i due schemi qui sopra, poi controlla:
   nodi paralleli con file disgiunti? criteri verificabili? niente cicli?
 
+### Plan score e critico del piano
+Dopo il piano (L; anche M quando scrivi tu le card) esegui
+`python3 "<script>/plan_score.py" --cwd "$PWD"`; poi rileggi state.json prima di
+modificarlo (lo script vi scrive `plan_score`). Rilancialo dopo ogni nodo aggiunto a run avviato.
+- Exit 0 (`ok`): in L, passa il piano al critico, punto `plan` (reference/critic.md).
+- Exit 1 (`reject`): rimanda al planner con i `reasons` (max 2 volte), poi chiedi
+  all'utente. MAI avviare il loop con `verdict: reject`.
+- Exit 2 (stato illeggibile o script mancante): fermati, non avviare il loop,
+  ricontrolla lo Step 0.
+
 ## Step 3 — Loop di esecuzione
-Ripeti finché tutti i nodi sono `validated` o uno è `failed`:
+Ripeti finché tutti i nodi sono `validated`/`done-unverified`, oppure uno è `failed`,
+oppure c'è stallo (nessun nodo running né pronto → chiedi all'utente):
 1. Pronti = `pending` con TUTTE le deps `validated` (`done` non basta).
 2. Segnali `running` in state.json, POI lanciali tutti insieme in background
-   (`isolation: worktree` se più di uno scrive file).
-3. A completamento leggi solo .graph/out/<ID>.json → `done`.
+   (`isolation: worktree` se più di uno scrive file). Passa `model` ed `effort`
+   del nodo come override al lancio; il `budget` va scritto nel prompt
+   (reference/scripts.md). Subito dopo il lancio scrivi in `nodes[].agent_id`
+   l'id restituito dal tool di lancio.
+3. A completamento leggi solo .graph/out/<ID>.json → `done`. Copia
+   `assumptions` nel nodo; esegui `python3 "<script>"/watchdog.py usage --cwd "$PWD"`
+   (scrive `usage` dei nodi e le somme in metrics) e RILEGGI state.json prima di
+   modificarlo. Per ogni voce di `findings` di `.graph/out/<ID>.json` e di `PLAN.json`
+   esegui `findings.py add --from <ID>`; i `findings` di `.val.json` e `REVIEW.json`
+   sono correzioni, non si registrano.
 4. Lancia `validator` sull'ID → .graph/out/<ID>.val.json:
    - `pass` → `validated`
-   - `fail`, attempts < 2 → findings nella card sotto "Correzioni richieste",
+   - `fail`, `attempts < 2` → findings nella card sotto "Correzioni richieste",
      attempts += 1, riprendi lo STESSO implementer con SendMessage → `running`
-   - `fail`, attempts = 2 → `failed`: ferma i dipendenti, chiedi all'utente
-   - `blocked` → rispondi nella card se puoi, altrimenti chiedi all'utente
+   - `fail`, `attempts >= 2` → `failed`: ferma i dipendenti, critico `failure`
+     (reference/critic.md), poi chiedi all'utente
+   - `blocked` → rispondi nella card se puoi, altrimenti chiedi all'utente;
+     se dopo un livello 2 del watchdog → livello 3 (reference/watchdog.md)
 5. Dopo OGNI transizione riscrivi state.json (log + metrics): il
    visualizzatore si aggiorna da lì.
+6. A fine di ogni livello del DAG: checkpoint dei findings (dedupe, proposta di
+   posizionamento, critico, AskUserQuestion, `backlog.md`): reference/findings.md.
+   Un finding `high` che blocca nodi pianificati → checkpoint subito.
 
 ## Step 4 — Chiusura
 - L: lancia `reviewer` sul diff aggregato.
-- `status: done`. Rispondi con la tabella dei nodi (id, titolo, stato,
+- `status: done`, `duration_s` nelle metriche. Rispondi con la tabella dei nodi (id, titolo, stato,
   tentativi), le metriche e un riassunto di massimo 5 righe.
 
 ## Regole ferree

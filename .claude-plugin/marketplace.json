@@ -7,7 +7,7 @@
     {
       "name": "graph-kit",
       "source": "./graph-kit",
-      "description": "Orchestrazione a grafo per gli agenti di Claude Code, con validazione tra gli step e visualizzatore live."
+      "description": "Orchestrazione a grafo per gli agenti di Claude Code, con validazione tra gli step, watchdog, findings, critico, eval harness e visualizzatore live."
     },
     {
       "name": "project-onboard",

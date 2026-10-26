@@ -1,0 +1,15 @@
+{
+  "goal": "Aggiungere un parser di parametri",
+  "mode": "L",
+  "mode_reason": "due sottoparti indipendenti",
+  "status": "running",
+  "started": "2026-10-26T10:00:00+01:00",
+  "nodes": [
+    {"id": "T01", "title": "Parser", "agent": "implementer", "deps": [],
+     "files": ["src/parser.py"], "status": "validated", "attempts": 1, "agent_id": "a1"},
+    {"id": "T02", "title": "Test del parser", "agent": "implementer", "deps": ["T01"],
+     "files": ["tests/test_parser.py"], "status": "pending", "attempts": 0, "agent_id": ""}
+  ],
+  "log": ["10:00 T01 pending → running"],
+  "metrics": {"subagents": 2, "validator_fails": 0}
+}

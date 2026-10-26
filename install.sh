@@ -13,10 +13,20 @@ tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 curl -fsSL "https://codeload.github.com/$REPO/tar.gz/$REF" | tar -xz -C "$tmp"
 root="$(find "$tmp" -mindepth 1 -maxdepth 1 -type d | head -1)"
 
-copy() {  # copia un file facendo backup se esiste ed è diverso
+mkdir -p "$DEST"
+abs_dest="$(cd "$DEST" && pwd)"
+
+copy() {  # copia un file; .bak solo se la destinazione esiste e differisce dal contenuto finale
   mkdir -p "$(dirname "$2")"
-  [[ -e "$2" ]] && ! cmp -s "$1" "$2" && cp "$2" "$2.bak"
-  cp "$1" "$2"
+  local stage; stage="$(mktemp "$tmp/stage.XXXXXX")"
+  cp "$1" "$stage"
+  # senza plugin ${CLAUDE_PLUGIN_ROOT} non esiste: punta agli script copiati (percorso assoluto)
+  if [[ "$2" == *.md ]]; then
+    sed "s#\${CLAUDE_PLUGIN_ROOT}/scripts#$abs_dest/aitools-scripts#g" "$stage" > "$stage.out" && mv "$stage.out" "$stage"
+  fi
+  [[ -e "$2" ]] && ! cmp -s "$stage" "$2" && cp "$2" "$2.bak"
+  cp "$stage" "$2"
+  rm -f "$stage"
 }
 
 for plugin in graph-kit project-onboard; do
@@ -32,13 +42,9 @@ for plugin in graph-kit project-onboard; do
     done
   fi
   if [[ -d "$src/scripts" ]]; then
-    for f in "$src/scripts"/*; do copy "$f" "$DEST/aitools-scripts/$(basename "$f")"; done
+    for f in "$src/scripts"/*; do [[ -f "$f" ]] && copy "$f" "$DEST/aitools-scripts/$(basename "$f")"; done
   fi
 done
 
-# senza plugin ${CLAUDE_PLUGIN_ROOT} non esiste: punta /graph-view allo script copiato
-gv="$DEST/commands/graph-view.md"
-[[ -f "$gv" ]] && sed -i.tmp "s#\${CLAUDE_PLUGIN_ROOT}/scripts#$DEST/aitools-scripts#" "$gv" && rm -f "$gv.tmp"
-
 echo "aitools installato in $DEST"
-echo "Comandi: /onboard, /run-graph <task>, /graph-status, /graph-view"
+echo "Comandi: /onboard, /run-graph <task>, /graph-status, /graph-view, /graph-eval"
