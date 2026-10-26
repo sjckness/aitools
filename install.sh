@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Installazione senza plugin: copia agenti e comandi in un progetto o globalmente.
-#   curl -fsSL https://raw.githubusercontent.com/sjckness/graph-kit/main/install.sh | bash            # progetto corrente
-#   curl -fsSL https://raw.githubusercontent.com/sjckness/graph-kit/main/install.sh | bash -s -- -g  # globale (~/.claude)
+#   curl -fsSL https://raw.githubusercontent.com/sjckness/aitools/main/install.sh | bash            # progetto corrente
+#   curl -fsSL https://raw.githubusercontent.com/sjckness/aitools/main/install.sh | bash -s -- -g  # globale (~/.claude)
 set -euo pipefail
 
-REPO="${GRAPH_KIT_REPO:-sjckness/graph-kit}"
+REPO="${GRAPH_KIT_REPO:-sjckness/aitools}"
 REF="${GRAPH_KIT_REF:-main}"
 DEST="./.claude"
 [[ "${1:-}" == "-g" || "${1:-}" == "--global" ]] && DEST="$HOME/.claude"

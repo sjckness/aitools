@@ -1,6 +1,8 @@
 {
-  "name": "graph-kit",
-  "owner": { "name": "Andreas Steffens" },
+  "name": "aitools",
+  "owner": {
+    "name": "Andreas Steffens"
+  },
   "plugins": [
     {
       "name": "graph-kit",
