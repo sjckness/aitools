@@ -144,7 +144,7 @@ function tokensView(){
     '<div class="legend"><span><i class="sw" style="background:#F5A524"></i>sjck-graph</span><span><i class="sw" style="background:#5B6B82"></i>baseline</span></div></div>'}
   var ins=(R&&R.insights||[]).map(function(i){var good=(i.saving_estimate||0)<0||i.good;
     return '<div class="ins"><div class="between"><span class="lbl" style="font-size:10px">'+esc(i.kind)+'</span><span style="font:600 13px var(--mono);color:'+(good?'#3FB950':'#F85149')+'">'+esc(i.amount||(i.tokens!=null?(good?'−':'+')+k(Math.abs(i.saving_estimate||i.tokens)):''))+'</span></div><div style="font-size:13px;font-weight:500">'+esc(i.title||i.suggestion)+'</div><div class="sub" style="font-size:12px">'+esc(i.title?i.suggestion:(i.node||''))+'</div></div>'}).join('');
-  return '<section class="row"><div class="card main"><div class="between" style="flex-wrap:wrap;align-items:center"><h2>'+(byType?'Tokens per node, by type':'Where the context goes, per node')+'</h2><div class="legend">'+leg+'</div></div>'+
+  return '<section class="row"><div class="card main"><div class="between" style="flex-wrap:wrap;align-items:center"><h2>'+(byType?'Tokens per node, by type':'Where the context goes, per node'+(T.categories_estimated?' <span class="sub" style="font-weight:400">(estimated split of real input)</span>':''))+'</h2><div class="legend">'+leg+'</div></div>'+
     (bars||'<div class="empty">No nodes with recorded tokens.</div>')+cmp+'</div><div class="card side" style="gap:12px"><h2>Where tokens are saved, where they are wasted</h2>'+(ins||'<div class="sub">Insights arrive with <code>token-report.json</code>.</div>')+'</div></section>';
 }
 

@@ -108,5 +108,84 @@ class TokensTest(unittest.TestCase):
         self.assertIn("2 total", buf.getvalue())
 
 
+def tool_use(mid, tid, name, inp):
+    return json.dumps({"type": "assistant", "message": {"id": mid, "role": "assistant", "model": "claude-sonnet",
+                       "content": [{"type": "tool_use", "id": tid, "name": name, "input": inp}]}})
+
+
+def tool_result(tid, chars):
+    return json.dumps({"type": "user", "message": {"role": "user", "content": [
+        {"type": "tool_result", "tool_use_id": tid, "content": "x" * chars}]}})
+
+
+class CategoriesTest(unittest.TestCase):
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix="sjck-cats-")
+        os.makedirs(os.path.join(self.root, ".sjck"))
+        self.state = {"goal": "g", "status": "running", "nodes": [
+            {"id": "T01", "status": "validated", "agent_id": "a1", "files": ["src/game/"], "attempts": 1}]}
+        with open(os.path.join(self.root, ".sjck", "state.json"), "w") as f:
+            json.dump(self.state, f)
+
+    def tearDown(self):
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def _sub(self):
+        lines = [
+            json.dumps({"type": "user", "message": {"role": "user", "content": "do T01"}}),
+            tool_use("a", "t1", "Read", {"file_path": os.path.join(self.root, ".sjck/cards/T01.md")}),
+            line("a", "claude-sonnet", 10, 5, 0, 1000),
+            tool_result("t1", 4000),        # card ~1000
+            tool_use("b", "t2", "Read", {"file_path": "./src/game/ghost.js"}),
+            line("b", "claude-sonnet", 10, 5, 1000, 2000),
+            tool_result("t2", 40000),       # in card ~10000
+            tool_use("c", "t3", "Read", {"file_path": "src/util/math.js"}),
+            line("c", "claude-sonnet", 10, 5, 3000, 10000),
+            tool_result("t3", 80000),       # outside ~20000
+            tool_use("d", "t4", "Bash", {"command": "npm test"}),
+            line("d", "claude-sonnet", 10, 5, 13000, 20000),
+            tool_result("t4", 8000),        # tool output ~2000
+            line("e", "claude-sonnet", 10, 5, 33000, 2000),
+        ]
+        p = os.path.join(self.root, "a1.jsonl")
+        with open(p, "w") as f:
+            f.write("\n".join(lines) + "\n")
+        return p
+
+    def test_categories_add_up_and_classify_reads(self):
+        r = tokens.parse_transcript(self._sub(), ["src/game/"], self.root)
+        cats = r["categories"]
+        real_in = r["input"] + r["cache_read"] + r["cache_creation"]
+        self.assertAlmostEqual(sum(cats.values()), real_in, delta=len(cats))
+        self.assertGreater(cats["file_read_outside_card"], cats["file_read_in_card"])
+        self.assertGreater(cats["file_read_in_card"], cats["card"])
+        self.assertIn("tool_output", cats)
+        self.assertIn("system", cats)
+        self.assertEqual(r["heavy"][0]["category"], "file_read_outside_card")
+        self.assertEqual(r["heavy"][0]["file"], "src/util/math.js")
+
+    def test_compaction_resets_context(self):
+        p = self._sub()
+        with open(p, "a") as f:
+            f.write(json.dumps({"type": "user", "isCompactSummary": True, "message": {"role": "user", "content": "summary"}}) + "\n")
+            f.write(line("z", "claude-sonnet", 100, 5, 0, 0) + "\n")
+        before = tokens.parse_transcript(self._sub(), ["src/game/"], self.root)["categories"]
+        after = tokens.parse_transcript(p, ["src/game/"], self.root)["categories"]
+        self.assertEqual(after["file_read_outside_card"], before["file_read_outside_card"], "post-compaction turn adds no reads")
+
+    def test_report_insights(self):
+        tokens.from_hook({"hook_event_name": "SubagentStop", "cwd": self.root, "agent_id": "a1", "agent_transcript_path": self._sub()})
+        with open(os.path.join(self.root, ".sjck", "token-report.json")) as f:
+            rep = json.load(f)
+        kinds = {i["kind"] for i in rep["insights"]}
+        self.assertIn("card", kinds, "outside-card reads flagged")
+        self.assertIn("waste", kinds, "retried attempt flagged")
+        self.assertIn("heavy", kinds)
+        with open(os.path.join(self.root, ".sjck", "tokens.json")) as f:
+            data = json.load(f)
+        self.assertTrue(data["categories_estimated"])
+        self.assertIn("file_read_outside_card", data["by_node"]["T01"]["categories"])
+
+
 if __name__ == "__main__":
     unittest.main()

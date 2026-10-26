@@ -65,4 +65,7 @@ test('run tokens in the tree head', () => {
   const tip = m.tokensTooltip(d);
   assert.match(tip, /Cache hit: 83%/);
   assert.match(tip, /T01 65k · ORCH 60k/);
+  d.tokens.categories_estimated = true;
+  d.tokens.by_node.T01.categories = { file_read_outside_card: 30000, card: 10000 };
+  assert.match(m.tokensTooltip(d), /Context \(estimated\): files outside card 75% · card 25%/);
 });

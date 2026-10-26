@@ -66,6 +66,14 @@ function tokensTooltip(data) {
   if (inp) lines.push(`Cache hit: ${Math.round(((t.cache_read || 0) / inp) * 100)}%`);
   const nodes = Object.entries(T.by_node || {}).map(([id, n]) => [id, n.total != null ? n.total : (n.input || 0) + (n.output || 0)]).sort((a, b) => b[1] - a[1]);
   if (nodes.length) lines.push(nodes.slice(0, 8).map(([id, v]) => `${id} ${k(v)}`).join(' · '));
+  const cats = {};
+  for (const n of Object.values(T.by_node || {})) for (const [c, v] of Object.entries(n.categories || {})) cats[c] = (cats[c] || 0) + v;
+  const sum = Object.values(cats).reduce((a, b) => a + b, 0);
+  if (sum) {
+    const label = { system: 'system', card: 'card', interfaces: 'interfaces', file_read_in_card: 'files in card', file_read_outside_card: 'files outside card', tool_output: 'tool output', agent_messages: 'agent messages', other: 'other' };
+    lines.push('Context' + (T.categories_estimated ? ' (estimated)' : '') + ': ' + Object.entries(cats).sort((a, b) => b[1] - a[1]).slice(0, 4)
+      .map(([c, v]) => `${label[c] || c} ${Math.round((v / sum) * 100)}%`).join(' · '));
+  }
   return lines.join('\n');
 }
 
