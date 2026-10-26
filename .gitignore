@@ -2,3 +2,5 @@
 __pycache__/
 evals/results/
 examples/demo/.sjck/view.html
+console/ui/viewer.html
+console/node_modules/

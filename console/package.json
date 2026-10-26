@@ -1,0 +1,30 @@
+{
+  "name": "sjck",
+  "version": "0.1.0",
+  "description": "sjck console: a local web app to start, watch and steer sjck agent-graph runs across your projects.",
+  "license": "MIT",
+  "author": "Andreas Steffens",
+  "type": "module",
+  "bin": {
+    "sjck": "bin/sjck.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "ui"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node bin/sjck.js serve",
+    "test": "node --test test/console.test.js",
+    "prepack": "node scripts/sync-viewer.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sjckness/sjckAI-tools.git",
+    "directory": "console"
+  },
+  "keywords": ["claude-code", "agents", "orchestration", "dag", "dashboard"]
+}

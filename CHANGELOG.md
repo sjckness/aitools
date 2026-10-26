@@ -1,5 +1,12 @@
 # Changelog
 
+## console 0.1.0 — 2026-10-26
+- Nuova app `console/` (Node ≥ 20, zero dipendenze): `sjck serve`, `sjck add/remove/list`.
+- Home con tutti i progetti registrati e stato live; pagina di progetto con Run Viewer aggiornato via SSE, pannello Task (Plan/Run con `claude -p`, modalità S/M/L, stop) e log del run in streaming.
+- Sicurezza: solo localhost, token casuale (cookie HttpOnly/SameSite=Strict), controllo dell'header Host contro il DNS rebinding, limite sul body, tipi di run in whitelist.
+- La console non scrive lo stato del run: legge `.sjck/` e salva i propri log in `.sjck/console/runs/`.
+- 12 test (`npm test` in `console/`); spec in `docs/specs/console.md`.
+
 ## 0.3.1 — 2026-10-26 · rebranding sjck
 - Marketplace `sjck` (repo `sjckness/sjckAI-tools`); plugin `graph-kit` → `sjck-graph`, `project-onboard` → `sjck-onboard`.
 - Comandi: `/sjck-run`, `/sjck-plan`, `/sjck-status`, `/sjck-view`, `/sjck-eval`, `/sjck-onboard`.

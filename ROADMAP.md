@@ -10,6 +10,11 @@
 - [x] Hook che blocca le scritture fuori dai `files` della card
 - [ ] Planner che stima il costo del DAG e lo confronta con la modalità M
 
+## Console
+- [x] Fase 1: daemon, home dei progetti, Plan/Run dal browser, viewer live (`docs/specs/console.md`)
+- [ ] Fase 2: chat con il planner, approvazioni, notifiche
+- [ ] Fase 3: analytics, multi-macchina, app desktop
+
 ## Prossimo — live change requests
 - [ ] Spec: `docs/specs/change-requests.md` (`/sjck-change` in una sessione separata, CR in `.sjck/changes/`, applicati dall'orchestratore a run in corso)
 

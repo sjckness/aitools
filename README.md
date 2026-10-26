@@ -5,7 +5,7 @@
 **Claude Code plugins that make agents work as a graph:
 minimal context, parallel steps, every step validated before the next one.**
 
-`sjck-graph` · `sjck-onboard`
+`sjck-graph` · `sjck-onboard` · `sjck console`
 
 <img src="docs/img/viewer-graph.png" alt="sjck-graph Run Viewer: graph nodes by level, run KPIs, critic, watchdog and log" width="100%">
 
@@ -166,6 +166,35 @@ python3 sjck-graph/scripts/graph_view.py --cwd examples/demo --open
 
 <br clear="right">
 
+## sjck console
+
+A local web app for the machine where your repos live: every project in one
+place, start **Plan** or **Run** from the browser, follow the Run Viewer live
+and the agent log as it streams. Linux, macOS and Windows; Node ≥ 20, no
+dependencies.
+
+<img src="docs/img/console-project.png" alt="sjck console: live Run Viewer of a project next to the Task panel and the streaming run log" width="100%">
+
+```bash
+git clone https://github.com/sjckness/sjckAI-tools.git
+npm i -g ./sjckAI-tools/console
+cd ~/f1tenth_more && sjck add          # register a project
+sjck serve                             # opens http://localhost:7777
+```
+
+It listens on localhost only and needs the token in the link it prints. Runs go
+through your own Claude Code login (`claude -p`), never an API key in the page.
+The console only reads `.sjck/` and writes its run logs; the orchestrator stays
+the single writer of the run state. Next: chat with the planner and approve
+findings and change requests from the page — see the
+[spec](docs/specs/console.md).
+
+<details>
+<summary>Home screen</summary>
+
+<img src="docs/img/console-home.png" alt="sjck console home: project cards with status, progress and last update" width="100%">
+</details>
+
 ## sjck-onboard
 
 ```
@@ -183,6 +212,7 @@ hand-written lines and actually runs the build/test commands it documents.
 |---|---|
 | ✅ 0.3 | anti-loop watchdog, findings with approval, critic, model/effort per node, eval harness — [spec](docs/specs/v0.3.md) |
 | **0.4** | token analytics from real transcripts, no-kit baseline — [spec](docs/specs/v0.4-token-analytics.md) |
+| **next** | console phase 2: chat with the planner, approvals, live change requests — [spec](docs/specs/console.md), [spec](docs/specs/change-requests.md) |
 | 0.5 | memory across runs (`lessons.md`) |
 | beyond | job runner for heavy workloads, multi-machine, agent optimizer |
 
