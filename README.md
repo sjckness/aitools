@@ -1,37 +1,41 @@
 # aitools
 
-Raccolta di tool per agenti AI. Primo tool: **graph-kit**.
+Plugin per Claude Code che rendono gli agenti più autonomi, economici e affidabili.
 
-## graph-kit
-
-Orchestrazione a grafo per gli agenti di Claude Code.
-Una task entra, il kit sceglie da solo quanti agenti servono, li fa lavorare
-in parallelo dove possibile e non lascia passare un errore da uno step al successivo.
+| Plugin | Cosa fa |
+|---|---|
+| **graph-kit** | Orchestrazione a grafo: triage automatico S/M/L, agenti in parallelo, validazione tra gli step, stato persistente, visualizzatore live. |
+| **project-onboard** | Genera un `CLAUDE.md` compatto e una mappa per moduli, così Claude capisce il progetto senza esplorarlo ogni volta. |
 
 ## Installazione
 
-**Come plugin (consigliato)**, dentro Claude Code:
+Dentro Claude Code, una volta per macchina:
 
     /plugin marketplace add sjckness/aitools
     /plugin install graph-kit@aitools
+    /plugin install project-onboard@aitools
 
 Aggiornamento: `/plugin marketplace update aitools`.
 
-**Senza plugin**, dal terminale nella root del progetto:
+## Flusso consigliato in un progetto nuovo
 
-    curl -fsSL https://raw.githubusercontent.com/sjckness/aitools/main/install.sh | bash
+    /onboard                      # una volta: CLAUDE.md + .claude/map/
+    <chiedi la task normalmente>  # per task grandi Claude usa il grafo da solo
+    /graph-view                   # opzionale: segui il grafo nel browser
 
-Aggiungi `-s -- -g` per installarlo in `~/.claude` e averlo in tutti i progetti.
+## graph-kit
 
-## Uso
+Si attiva **da solo** per task di sviluppo non banali (è una skill), oppure
+esplicitamente:
 
     /run-graph aggiungi i servizi load/start/abort al mission_manager_node
+    /run-graph refactor del logger --mode M
+    /run-graph fix del parser, usa solo implementer e validator
     /graph-status
+    /graph-view
 
-Se è installato come plugin, i comandi possono apparire anche come
-`/graph-kit:run-graph` e `/graph-kit:graph-status`.
-
-## Come funziona
+Gli override (`--mode`, agenti da usare) hanno sempre la precedenza sul triage.
+Se tolgo il validator, i nodi finiscono `done-unverified` invece di `validated`.
 
     triage ──► S: inline ─────────────────► validator ─► fine
            ├─► M: scout ► impl ► validator ─────────────► fine
@@ -39,9 +43,11 @@ Se è installato come plugin, i comandi possono apparire anche come
                                     ▲          │ fail (max 2)
                                     └──────────┘
 
-- `.graph/state.yaml` è l'unica fonte di verità: il run riprende da lì se si interrompe.
+- `.graph/state.json` è l'unica fonte di verità: il run riprende da lì se si interrompe.
 - Un nodo sblocca i successivi solo con un `.val.json` con `verdict: pass`.
 - Gli agenti si passano file in `.graph/`, non riassunti in chat.
+- Il visualizzatore `.graph/view.html` viene rigenerato da un hook a ogni
+  scrittura dello stato e si ricarica da solo ogni 2 secondi.
 
 | Agente | Modello | Contesto |
 |---|---|---|
@@ -51,7 +57,23 @@ Se è installato come plugin, i comandi possono apparire anche come
 | validator | sonnet | card + out.json + diff |
 | reviewer | opus | diff aggregato |
 
+## project-onboard
+
+    /onboard
+    /onboard solo f1tenth_behavior
+
+Produce `CLAUDE.md` (≤ ~120 righe, caricato in ogni sessione) e
+`.claude/map/<modulo>.md` (letti solo quando servono). Non sovrascrive le righe
+scritte a mano, e verifica davvero i comandi di build/test che documenta.
+
+## Installazione senza plugin
+
+    curl -fsSL https://raw.githubusercontent.com/sjckness/aitools/main/install.sh | bash
+
+Aggiungi `-s -- -g` per installare in `~/.claude`. In questa modalità il
+visualizzatore non si aggiorna da solo (gli hook richiedono il plugin):
+usa `/graph-view` quando vuoi vederlo.
+
 ## Contribuire
-Ogni modifica a un agente va con una riga in `CHANGELOG.md` e, se possibile,
-con le metriche di un run prima/dopo (`metrics` in state.yaml).
-Vedi `ROADMAP.md`.
+Ogni modifica va con una riga in `CHANGELOG.md` e, se possibile, con le
+metriche di un run prima/dopo (`metrics` in state.json). Vedi `ROADMAP.md`.

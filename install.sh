@@ -11,16 +11,34 @@ DEST="./.claude"
 
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 curl -fsSL "https://codeload.github.com/$REPO/tar.gz/$REF" | tar -xz -C "$tmp"
-src="$(find "$tmp" -maxdepth 2 -type d -name graph-kit | head -1)"
+root="$(find "$tmp" -mindepth 1 -maxdepth 1 -type d | head -1)"
 
-mkdir -p "$DEST/agents" "$DEST/commands"
-for d in agents commands; do
-  for f in "$src/$d"/*.md; do
-    t="$DEST/$d/$(basename "$f")"
-    [[ -e "$t" ]] && ! cmp -s "$f" "$t" && cp "$t" "$t.bak"
-    cp "$f" "$t"
+copy() {  # copia un file facendo backup se esiste ed è diverso
+  mkdir -p "$(dirname "$2")"
+  [[ -e "$2" ]] && ! cmp -s "$1" "$2" && cp "$2" "$2.bak"
+  cp "$1" "$2"
+}
+
+for plugin in graph-kit project-onboard; do
+  src="$root/$plugin"
+  [[ -d "$src" ]] || continue
+  for d in agents commands; do
+    [[ -d "$src/$d" ]] || continue
+    for f in "$src/$d"/*.md; do copy "$f" "$DEST/$d/$(basename "$f")"; done
   done
+  if [[ -d "$src/skills" ]]; then
+    (cd "$src/skills" && find . -type f) | while read -r f; do
+      copy "$src/skills/$f" "$DEST/skills/$f"
+    done
+  fi
+  if [[ -d "$src/scripts" ]]; then
+    for f in "$src/scripts"/*; do copy "$f" "$DEST/aitools-scripts/$(basename "$f")"; done
+  fi
 done
 
-echo "graph-kit installato in $DEST"
-echo "Apri claude e lancia: /run-graph <task>"
+# senza plugin ${CLAUDE_PLUGIN_ROOT} non esiste: punta /graph-view allo script copiato
+gv="$DEST/commands/graph-view.md"
+[[ -f "$gv" ]] && sed -i.tmp "s#\${CLAUDE_PLUGIN_ROOT}/scripts#$DEST/aitools-scripts#" "$gv" && rm -f "$gv.tmp"
+
+echo "aitools installato in $DEST"
+echo "Comandi: /onboard, /run-graph <task>, /graph-status, /graph-view"

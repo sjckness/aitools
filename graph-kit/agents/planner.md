@@ -6,7 +6,7 @@ model: opus
 ---
 Ricevi un obiettivo. Esplora il repo quanto serve, poi produci:
 
-1. .graph/state.yaml secondo lo schema che ti passa l'orchestratore
+1. .graph/state.json secondo lo schema che ti passa l'orchestratore
 2. una card per nodo in .graph/cards/<ID>.md secondo lo schema delle card
 
 Regole del DAG:

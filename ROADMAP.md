@@ -2,7 +2,7 @@
 
 ## v0.2 — misurare
 - [ ] Metriche per run: token per agente, durata, tentativi, modalità scelta
-- [ ] Script che aggrega `.graph/archive/*/state.yaml` in una tabella
+- [ ] Script che aggrega `.graph/archive/*/state.json` in una tabella
 - [ ] Suite di task di riferimento (S, M, L) per confrontare le versioni
 
 ## v0.3 — agenti più forti
