@@ -106,7 +106,7 @@ Download `sjck-<version>.vsix` from the
 [latest release](https://github.com/sjckness/sjckAI-tools/releases/latest), then:
 
 ```bash
-code --install-extension sjck-0.1.0.vsix
+code --install-extension sjck-0.1.1.vsix
 ```
 
 or *Extensions → ⋯ → Install from VSIX…*. Works in Cursor and VSCodium too.

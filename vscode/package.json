@@ -2,7 +2,7 @@
   "name": "sjck",
   "displayName": "sjck — agent graph for Claude Code",
   "description": "Watch and steer sjck agent-graph runs inside VS Code: live node tree, status bar, file decorations, Run Viewer, planner chat and an inbox for findings and change requests.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "sjckness",
   "license": "MIT",
   "icon": "media/icon.png",

@@ -3,3 +3,4 @@ scripts/**
 node_modules/**
 jsconfig.json
 **/*.map
+media/icon.svg
