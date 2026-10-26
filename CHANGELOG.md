@@ -1,5 +1,8 @@
 # Changelog
 
+## vscode 0.1.4 — 2026-10-26 · Mission Control
+- Estensione VS Code: nuovo pannello Mission Control (grafo animato live con pan/zoom, anello di avanzamento, statistiche, drawer per nodo, inbox interattiva, plan score, timeline) aggiornato via `postMessage`; chat del planner ridisegnata.
+
 ## vscode 0.1.0 — 2026-10-26
 - Estensione VS Code nativa (`vscode/`): vista Graph nell'activity bar (livelli e nodi con stato, modello/effort, tool call vs budget, tentativi, token; card al clic; diff dei file cambiati da un nodo), barra di stato, decorazioni nell'Explorer, Run Viewer in una tab (CSP con nonce), chat col planner nella sidebar, Inbox con approvazioni, Plan/Run/Stop con log nell'output, notifiche.
 - Riusa i moduli della console (`data`, `inbox`, `runner`, `chat`), copiati in `lib/` al packaging; non scrive mai lo stato del run.

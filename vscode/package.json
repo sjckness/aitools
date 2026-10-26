@@ -1,8 +1,8 @@
 {
   "name": "sjck",
   "displayName": "sjck — agent graph for Claude Code",
-  "description": "Watch and steer sjck agent-graph runs inside VS Code: live node tree, status bar, file decorations, Run Viewer, planner chat and an inbox for findings and change requests.",
-  "version": "0.1.1",
+  "description": "Watch and steer sjck agent-graph runs inside VS Code: Mission Control with a live animated graph, node tree, status bar, file decorations, Run Viewer, planner chat and an inbox for findings and change requests.",
+  "version": "0.1.4",
   "publisher": "sjckness",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -38,7 +38,7 @@
     "viewsWelcome": [
       {
         "view": "sjck.graph",
-        "contents": "No sjck run in this workspace yet.\n[Plan a task](command:sjck.plan)\n[Run a task](command:sjck.run)\nRequires Claude Code with the sjck-graph plugin ([install](https://github.com/sjckness/sjckAI-tools#install))."
+        "contents": "No sjck run in this workspace yet.\n[Open Mission Control](command:sjck.openDashboard)\n[Plan a task](command:sjck.plan)\n[Run a task](command:sjck.run)\nRequires Claude Code with the sjck-graph plugin ([install](https://github.com/sjckness/sjckAI-tools#install))."
       },
       {
         "view": "sjck.inbox",
@@ -49,6 +49,7 @@
       { "command": "sjck.plan", "title": "Plan a task", "category": "sjck", "icon": "$(lightbulb)" },
       { "command": "sjck.run", "title": "Run", "category": "sjck", "icon": "$(play)" },
       { "command": "sjck.stop", "title": "Stop the run started here", "category": "sjck", "icon": "$(debug-stop)" },
+      { "command": "sjck.openDashboard", "title": "Open Mission Control", "category": "sjck", "icon": "$(rocket)" },
       { "command": "sjck.openViewer", "title": "Open Run Viewer", "category": "sjck", "icon": "$(graph)" },
       { "command": "sjck.refresh", "title": "Refresh", "category": "sjck", "icon": "$(refresh)" },
       { "command": "sjck.showLog", "title": "Show run log", "category": "sjck", "icon": "$(output)" },
@@ -68,7 +69,8 @@
         { "command": "sjck.plan", "when": "view == sjck.graph", "group": "navigation@1" },
         { "command": "sjck.run", "when": "view == sjck.graph && !sjck.running", "group": "navigation@2" },
         { "command": "sjck.stop", "when": "view == sjck.graph && sjck.running", "group": "navigation@2" },
-        { "command": "sjck.openViewer", "when": "view == sjck.graph", "group": "navigation@3" },
+        { "command": "sjck.openDashboard", "when": "view == sjck.graph", "group": "navigation@0" },
+        { "command": "sjck.openViewer", "when": "view == sjck.graph", "group": "1_more" },
         { "command": "sjck.showLog", "when": "view == sjck.graph", "group": "1_more" },
         { "command": "sjck.refresh", "when": "view == sjck.graph", "group": "1_more" },
         { "command": "sjck.chatReset", "when": "view == sjck.chat", "group": "navigation" }

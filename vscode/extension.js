@@ -47,7 +47,7 @@ class GraphProvider {
       head.description = [s.status, s.mode && 'mode ' + s.mode].filter(Boolean).join(' · ');
       head.tooltip = s.mode_reason || '';
       head.iconPath = themeIcon(s.status === 'done' ? 'validated' : s.status);
-      head.command = { command: 'sjck.openViewer', title: 'Open Run Viewer' };
+      head.command = { command: 'sjck.openDashboard', title: 'Open Mission Control' };
       return [head, ...model.levels(data.state.nodes).map((nodes, i) => {
         const t = new vscode.TreeItem(`Level ${i}`, vscode.TreeItemCollapsibleState.Expanded);
         t.description = `${nodes.filter((n) => n.status === 'validated').length}/${nodes.length}`;
@@ -152,6 +152,51 @@ function openViewer() {
   viewerPanel.onDidDispose(() => { viewerPanel = null; });
 }
 
+// Mission Control: a full panel fed by postMessage, so updates animate instead of reloading.
+let dash = null;
+let ext = null;
+function dashPayload() {
+  const run = runner ? runner.info('vscode') : null;
+  return { type: 'data', data, inbox, changed, run: run ? { running: Boolean(run.running), kind: run.kind } : null };
+}
+function postDashboard() { if (dash) dash.webview.postMessage(dashPayload()); }
+function openDashboard() {
+  if (dash) return dash.reveal();
+  const media = vscode.Uri.joinPath(ext.extensionUri, 'media');
+  dash = vscode.window.createWebviewPanel('sjck.dashboard', 'sjck Mission Control', vscode.ViewColumn.Active,
+    { enableScripts: true, retainContextWhenHidden: true, localResourceRoots: [media] });
+  dash.iconPath = vscode.Uri.joinPath(media, 'sjck.svg');
+  const w = dash.webview;
+  const n = nonce();
+  const css = w.asWebviewUri(vscode.Uri.joinPath(media, 'dashboard.css'));
+  const js = w.asWebviewUri(vscode.Uri.joinPath(media, 'dashboard.js'));
+  w.html = `<!doctype html><html><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${w.cspSource} data:; style-src ${w.cspSource} 'unsafe-inline'; script-src 'nonce-${n}';">
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="${css}"><title>sjck Mission Control</title></head>
+<body><div class="bgfx"></div><main id="app"></main><script nonce="${n}" src="${js}"></script></body></html>`;
+  w.onDidReceiveMessage((m) => {
+    if (!m || typeof m.type !== 'string') return;
+    const id = typeof m.id === 'string' && /^[A-Za-z0-9_-]{1,32}$/.test(m.id) ? m.id : null;
+    if (m.type === 'ready') postDashboard();
+    else if (m.type === 'command') {
+      const cmd = { plan: 'sjck.plan', run: 'sjck.run', stop: 'sjck.stop', approvePlan: 'sjck.approvePlan', chat: 'sjck.chat.focus', log: 'sjck.showLog', viewer: 'sjck.openViewer' }[m.name];
+      if (cmd) vscode.commands.executeCommand(cmd);
+    } else if (m.type === 'openCard' && id) vscode.commands.executeCommand('sjck.openCard', { nodeId: id });
+    else if (m.type === 'nodeDiff' && id) vscode.commands.executeCommand('sjck.nodeDiff', { nodeId: id });
+    else if (m.type === 'decide' && id && /^(finding|cr)$/.test(m.kind)) {
+      const ok = m.kind === 'finding' ? ['accept', 'defer', 'reject'] : ['apply', 'reject'];
+      if (ok.includes(m.action)) vscode.commands.executeCommand(`sjck.${m.kind === 'cr' ? 'cr' : 'finding'}${m.action[0].toUpperCase()}${m.action.slice(1)}`, { itemId: id });
+    } else if (m.type === 'openFile' && root && typeof m.file === 'string') {
+      const [file, line] = m.file.split(':');
+      const abs = path.resolve(root, file);
+      if (!abs.startsWith(root + path.sep)) return;
+      vscode.window.showTextDocument(vscode.Uri.file(abs), line && +line ? { selection: new vscode.Range(+line - 1, 0, +line - 1, 0) } : {})
+        .then(undefined, () => vscode.window.showWarningMessage(`sjck: cannot open ${file}`));
+    }
+  });
+  dash.onDidDispose(() => { dash = null; });
+}
+
 class ChatView {
   resolveWebviewView(view) {
     this.view = view;
@@ -160,28 +205,55 @@ class ChatView {
     view.webview.html = `<!doctype html><html><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${n}';">
 <style>
-body{padding:8px;font:var(--vscode-font-size) var(--vscode-font-family);color:var(--vscode-foreground);display:flex;flex-direction:column;height:100vh;box-sizing:border-box;margin:0}
-#msgs{flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:8px}
-.m{padding:8px 10px;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.45}
-.user{align-self:flex-end;background:var(--vscode-button-background);color:var(--vscode-button-foreground);max-width:90%}
-.assistant{background:var(--vscode-editorWidget-background);border:1px solid var(--vscode-widget-border,transparent)}
-.tool{font-family:var(--vscode-editor-font-family);font-size:11px;opacity:.75;padding:0 4px}
-.err{color:var(--vscode-errorForeground)}
-.hint{opacity:.7;margin:auto;text-align:center;padding:16px}
-form{display:flex;gap:6px}textarea{flex:1;resize:vertical;min-height:52px;background:var(--vscode-input-background);color:var(--vscode-input-foreground);border:1px solid var(--vscode-input-border,transparent);border-radius:4px;padding:6px;font:inherit}
-button{background:var(--vscode-button-background);color:var(--vscode-button-foreground);border:0;border-radius:4px;padding:6px 12px;cursor:pointer}button:disabled{opacity:.5}
+:root{--acc:#f5b544;--acc2:#ff7a59;--line:var(--vscode-widget-border,rgba(127,127,127,.18))}
+body.vscode-light{--acc:#d98a00}
+*{box-sizing:border-box}
+body{margin:0;padding:0;font:var(--vscode-font-size) var(--vscode-font-family);color:var(--vscode-foreground);display:flex;flex-direction:column;height:100vh}
+header{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,rgba(245,181,68,.10),transparent)}
+.logo{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font:700 11px var(--vscode-editor-font-family);color:#1a1205;background:linear-gradient(135deg,var(--acc),var(--acc2));box-shadow:0 0 14px rgba(245,160,60,.45)}
+header b{font-size:12px}header span{font-size:11px;opacity:.6;margin-left:auto}
+#msgs{flex:1;overflow:auto;display:flex;flex-direction:column;gap:10px;padding:12px}
+.row{display:flex;gap:8px;align-items:flex-end;animation:in .3s both}
+@keyframes in{from{opacity:0;transform:translateY(6px)}}
+.row.user{justify-content:flex-end}
+.av{width:20px;height:20px;border-radius:50%;flex:none;display:grid;place-items:center;font:700 9px var(--vscode-editor-font-family);color:#1a1205;background:linear-gradient(135deg,var(--acc),var(--acc2))}
+.m{padding:9px 12px;border-radius:14px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;max-width:88%}
+.user .m{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#1a1205;border-bottom-right-radius:4px;font-weight:500}
+.assistant .m{background:var(--vscode-editorWidget-background);border:1px solid var(--line);border-bottom-left-radius:4px}
+.tool{font:11px var(--vscode-editor-font-family);opacity:.7;padding:2px 10px 2px 28px;display:flex;gap:6px;align-items:center;animation:in .2s both}
+.tool::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--acc);box-shadow:0 0 8px var(--acc)}
+.err .m{border-color:var(--vscode-errorForeground);color:var(--vscode-errorForeground)}
+.typing{display:flex;gap:4px;padding:12px 14px}.typing i{width:6px;height:6px;border-radius:50%;background:var(--acc);animation:b 1.2s infinite}.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,60%,100%{opacity:.25;transform:none}30%{opacity:1;transform:translateY(-3px)}}
+.hint{margin:auto;text-align:center;padding:12px;max-width:260px}
+.orb{width:46px;height:46px;border-radius:50%;margin:0 auto 12px;background:radial-gradient(circle at 35% 30%,#ffd98a,var(--acc) 45%,var(--acc2) 80%);filter:drop-shadow(0 0 16px rgba(245,160,60,.5));animation:fl 4s ease-in-out infinite}
+@keyframes fl{50%{transform:translateY(-4px)}}
+.hint p{opacity:.7;margin:0 0 12px;line-height:1.5}
+.sugg{display:flex;flex-direction:column;gap:6px}
+.sugg button{background:transparent;color:var(--vscode-foreground);border:1px solid var(--line);border-radius:10px;padding:7px 10px;text-align:left;cursor:pointer;font:inherit;font-size:12px}
+.sugg button:hover{border-color:var(--acc)}
+form{margin:10px;border:1px solid var(--line);border-radius:14px;background:var(--vscode-input-background);padding:6px;display:flex;flex-direction:column;gap:6px;transition:border-color .2s,box-shadow .2s}
+form:focus-within{border-color:var(--acc);box-shadow:0 0 0 3px rgba(245,181,68,.15)}
+textarea{border:0;outline:0;resize:none;min-height:44px;max-height:180px;background:transparent;color:var(--vscode-input-foreground);padding:4px 6px;font:inherit}
+.bar{display:flex;align-items:center;justify-content:space-between;font-size:10.5px;opacity:.85}.bar span{opacity:.6;padding-left:6px}
+button#b{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#1a1205;border:0;border-radius:9px;padding:5px 12px;cursor:pointer;font-weight:600}
+button#b:disabled{opacity:.4;cursor:default}
 </style></head><body>
+<header><div class="logo">sj</div><b>Planner</b><span>live run</span></header>
 <div id="msgs" role="log" aria-live="polite"></div>
-<form id="f"><label for="t" style="position:absolute;left:-9999px">Message</label><textarea id="t" placeholder="Ask the planner to add, edit or re-run work… (Ctrl+Enter)"></textarea><button id="b" type="submit">Send</button></form>
+<form id="f"><label for="t" style="position:absolute;left:-9999px">Message</label><textarea id="t" rows="2" placeholder="Ask the planner to add, edit or re-run work…"></textarea><div class="bar"><span>Ctrl+Enter to send</span><button id="b" type="submit">Send ↑</button></div></form>
 <script nonce="${n}">
 const api=acquireVsCodeApi(),box=document.getElementById('msgs'),t=document.getElementById('t'),b=document.getElementById('b');
-function add(m,live){const d=document.createElement('div');d.className='m '+(m.role||'assistant')+(m.error?' err':'');if(live)d.dataset.live='1';d.textContent=m.text;box.appendChild(d);box.scrollTop=box.scrollHeight}
+const HINT='<div class="hint"><div class="orb"></div><p>The planner knows the current run. Agreed changes become change requests the orchestrator applies live.</p><div class="sugg"><button>Why did the last node fail?</button><button>Add a node that writes tests for the new code</button><button>Re-run the slowest node with a bigger budget</button></div></div>';
+function typing(on){let e=box.querySelector('.typing-row');if(on&&!e){e=document.createElement('div');e.className='row assistant typing-row';e.innerHTML='<div class="av">sj</div><div class="m typing"><i></i><i></i><i></i></div>';box.appendChild(e)}else if(!on&&e)e.remove();if(on)box.appendChild(e);box.scrollTop=box.scrollHeight}
+function add(m,live){if(m.role==='tool'){const d=document.createElement('div');d.className='tool';if(live)d.dataset.live='1';d.textContent=m.text;box.appendChild(d)}else{const r=document.createElement('div');r.className='row '+(m.role||'assistant')+(m.error?' err':'');if(live)r.dataset.live='1';if(m.role!=='user'){const a=document.createElement('div');a.className='av';a.textContent='sj';r.appendChild(a)}const d=document.createElement('div');d.className='m';d.textContent=m.text;r.appendChild(d);box.appendChild(r)}const ty=box.querySelector('.typing-row');if(ty)box.appendChild(ty);box.scrollTop=box.scrollHeight}
 window.addEventListener('message',e=>{const m=e.data;
- if(m.type==='history'){box.innerHTML='';if(!m.messages.length)box.innerHTML='<div class="hint">The planner knows the current run. Agreed changes become change requests the orchestrator applies live.</div>';m.messages.forEach(x=>add(x));b.disabled=m.busy}
- else if(m.type==='message'){const h=box.querySelector('.hint');if(h)h.remove();add(m.message)}
+ if(m.type==='history'){box.innerHTML='';if(!m.messages.length)box.innerHTML=HINT;m.messages.forEach(x=>add(x));b.disabled=m.busy;typing(m.busy)}
+ else if(m.type==='message'){const h=box.querySelector('.hint');if(h)h.remove();add(m.message);if(m.message.role==='user')typing(true)}
  else if(m.type==='delta'){add(m.kind==='tool'?{role:'tool',text:m.text}:{role:'assistant',text:m.text},true)}
- else if(m.type==='done'){box.querySelectorAll('[data-live]').forEach(x=>x.remove());add(m.message);b.disabled=false}
- else if(m.type==='error'){add({role:'assistant',text:m.text,error:true});b.disabled=false}});
+ else if(m.type==='done'){box.querySelectorAll('[data-live]').forEach(x=>x.remove());typing(false);add(m.message);b.disabled=false}
+ else if(m.type==='error'){typing(false);add({role:'assistant',text:m.text,error:true});b.disabled=false}});
+box.addEventListener('click',e=>{const s=e.target.closest('.sugg button');if(s){t.value=s.textContent;t.focus()}});
 document.getElementById('f').onsubmit=e=>{e.preventDefault();const v=t.value.trim();if(!v)return;b.disabled=true;api.postMessage({type:'send',text:v});t.value=''};
 t.onkeydown=e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();document.getElementById('f').requestSubmit()}};
 api.postMessage({type:'ready'});
@@ -206,6 +278,7 @@ api.postMessage({type:'ready'});
 
 // ------------------------------------------------------------------ activate
 async function activate(context) {
+  ext = context;
   output = vscode.window.createOutputChannel('sjck');
   root = workspaceRoot();
   try {
@@ -222,7 +295,7 @@ async function activate(context) {
   const decos = new Decorations();
   const chatView = new ChatView();
   const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
-  status.command = 'workbench.view.extension.sjck';
+  status.command = 'sjck.openDashboard';
   status.name = 'sjck';
 
   const graphTree = vscode.window.createTreeView('sjck.graph', { treeDataProvider: graph, showCollapseAll: true });
@@ -243,18 +316,19 @@ async function activate(context) {
     const run = runner.info('vscode');
     vscode.commands.executeCommand('setContext', 'sjck.running', Boolean(run && run.running));
     status.text = model.statusText(data, inbox, run);
-    status.tooltip = data ? `${data.state.goal || ''}\nClick to open the sjck views` : 'sjck: no run yet';
+    status.tooltip = data ? `${data.state.goal || ''}\nClick to open Mission Control` : 'sjck: open Mission Control';
     status.show();
     const w = model.waitingCount(inbox);
     inboxTree.badge = w ? { value: w, tooltip: `${w} waiting for you` } : undefined;
     if (viewerPanel && data) viewerPanel.webview.html = viewerHtml(viewerPanel.webview);
+    postDashboard();
     if (vscode.workspace.getConfiguration('sjck').get('notifications')) {
       for (const n of model.changes(prev, data)) {
         const show = n.level === 'error' ? vscode.window.showErrorMessage : n.level === 'warn' ? vscode.window.showWarningMessage : vscode.window.showInformationMessage;
         const actions = n.action === 'plan' ? ['Review', 'Approve and run'] : ['Open'];
         show(n.text, ...actions).then((a) => {
           if (a === 'Approve and run') vscode.commands.executeCommand('sjck.approvePlan');
-          else if (a) openViewer();
+          else if (a) openDashboard();
         });
       }
     }
@@ -329,6 +403,7 @@ async function activate(context) {
   reg('sjck.stop', () => { runner.stop('vscode'); });
   reg('sjck.refresh', refresh);
   reg('sjck.openViewer', openViewer);
+  reg('sjck.openDashboard', openDashboard);
   reg('sjck.showLog', () => output.show(true));
   reg('sjck.change', () => vscode.commands.executeCommand('sjck.chat.focus'));
   reg('sjck.chatReset', () => {
