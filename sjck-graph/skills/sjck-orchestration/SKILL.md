@@ -139,6 +139,10 @@ oppure c'è stallo (nessun nodo running né pronto → chiedi all'utente):
 6. A fine di ogni livello del DAG: checkpoint dei findings (dedupe, proposta di
    posizionamento, critico, AskUserQuestion, `backlog.md`): reference/findings.md.
    Un finding `high` che blocca nodi pianificati → checkpoint subito.
+7. Inbox (change request di `/sjck-change` e decisioni della console): a ogni
+   transizione esegui `python3 "<script>"/inbox.py pending --cwd "$PWD"`.
+   Vuoto → prosegui. Altrimenti segui reference/inbox.md (priorità, critico,
+   `inbox.py apply`, `inbox.py decisions --apply`). Sei l'UNICO a eseguirli.
 
 ## Step 4 — Chiusura
 - L: lancia `sjck-reviewer` sul diff aggregato.

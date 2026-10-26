@@ -1,6 +1,6 @@
 {
   "name": "sjck",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "sjck console: a local web app to start, watch and steer sjck agent-graph runs across your projects.",
   "license": "MIT",
   "author": "Andreas Steffens",

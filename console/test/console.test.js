@@ -187,3 +187,93 @@ describe('server', () => {
     assert.match(info.lines.join('\n'), /--mode M/);
   });
 });
+
+describe('phase 2', async () => {
+  const inboxMod = await import('../src/inbox.js');
+  const { chatArgs } = await import('../src/chat.js');
+  const { diff } = await import('../src/notify.js');
+
+  test('decisions: validation, duplicates, inbox view', () => {
+    const dir = project('inbox', true);
+    assert.throws(() => inboxMod.writeDecision(dir, { kind: 'finding', id: '../x', action: 'accept' }), /invalid finding id/);
+    assert.throws(() => inboxMod.writeDecision(dir, { kind: 'cr', id: 'CR-001', action: 'accept' }), /action must be/);
+    assert.throws(() => inboxMod.writeDecision(dir, { kind: 'shell', id: 'x', action: 'run' }), /kind must be/);
+    assert.throws(() => inboxMod.writeDecision(dir, { kind: 'finding', id: 'F01', action: 'accept', placement: '../../etc' }), /invalid placement/);
+    const d = inboxMod.writeDecision(dir, { kind: 'finding', id: 'F01', action: 'accept' });
+    assert.equal(d.status, 'new');
+    assert.throws(() => inboxMod.writeDecision(dir, { kind: 'finding', id: 'F01', action: 'reject' }), /already waiting/);
+    const ib = inboxMod.inbox(dir, data.collect(dir).findings);
+    assert.equal(ib.findings.find((f) => f.id === 'F01').decided, 'accept');
+    assert.ok(ib.findings.every((f) => f.status !== 'accepted'), 'accepted findings are not in the inbox');
+  });
+
+  test('chat agent is restricted to reading and writing change requests', () => {
+    const a = chatArgs({ message: 'hi', sessionId: 'abc', resume: false, claude: {} });
+    assert.equal(a[1], '/sjck-change hi');
+    assert.deepEqual(a.slice(a.indexOf('--tools'), a.indexOf('--tools') + 2), ['--tools', 'Read,Glob,Grep,Write,Skill']);
+    assert.ok(a.includes('Write(./.sjck/changes/**)'));
+    assert.ok(!a.includes('Bash') && !a.includes('bypassPermissions'));
+    const r = chatArgs({ message: 'again', sessionId: 'abc', resume: true, claude: {} });
+    assert.deepEqual(r.slice(0, 4), ['-p', 'again', '--resume', 'abc']);
+  });
+
+  test('notification diff', () => {
+    const base = { status: 'running', goal: 'g', nodes: [{ id: 'T1', status: 'running' }], findings: [], crs: [] };
+    assert.deepEqual(diff(null, base, 'p'), []);
+    const cur = { ...base, status: 'failed', nodes: [{ id: 'T1', status: 'failed', title: 't' }], findings: ['F1'], crs: ['CR-001'] };
+    const titles = diff(base, cur, 'p').map((n) => n.title);
+    assert.deepEqual(titles, ['p: T1 failed', 'p: run failed', 'p: 1 new finding', 'p: change request CR-001']);
+    assert.deepEqual(diff(cur, cur, 'p'), []);
+  });
+
+  test('chat over HTTP with streaming and session resume; global notifications', async () => {
+    chmodSync(FAKE, 0o755);
+    const dir = project('chatp', true);
+    const pid = config.addProject(dir).id;
+    const cfg = config.load();
+    cfg.claude = { bin: FAKE, args: [] };
+    config.save(cfg);
+    const c = createConsole({ port: 0, pollMs: 50, notifyMs: 50 });
+    const url = await c.listen();
+    const base = url.split('/?')[0];
+    const h = { 'x-sjck-token': c.token, 'content-type': 'application/json' };
+    try {
+      const events = await fetch(base + '/api/events', { headers: h });
+      const reader = events.body.getReader();
+      const say = async (message) => {
+        const r = await fetch(`${base}/api/projects/${pid}/chat`, { method: 'POST', headers: h, body: JSON.stringify({ message }) });
+        assert.equal(r.status, 202);
+        for (let i = 0; i < 100; i++) {
+          const s = await (await fetch(`${base}/api/projects/${pid}/chat`, { headers: h })).json();
+          if (!s.busy && s.messages.at(-1).role === 'assistant') return s;
+          await new Promise((res) => setTimeout(res, 50));
+        }
+        throw new Error('no answer');
+      };
+      let s = await say('hello');
+      assert.match(s.messages.at(-1).text, /got: \/sjck-change hello$/);
+      s = await say('and again');
+      assert.match(s.messages.at(-1).text, /got: and again \(resumed\)/);
+      assert.equal(s.messages.length, 4);
+      const busy = await fetch(`${base}/api/projects/${pid}/chat`, { method: 'POST', headers: h, body: JSON.stringify({ message: '' }) });
+      assert.equal(busy.status, 400);
+      // a new change request appears -> global notification
+      mkdirSync(join(dir, '.sjck', 'changes'), { recursive: true });
+      writeFileSync(join(dir, '.sjck', 'changes', 'CR-001.json'), JSON.stringify({ id: 'CR-001', summary: 's', status: 'proposed', ops: [{ op: 'rerun', id: 'T05' }] }));
+      let text = '';
+      const deadline = Date.now() + 3000;
+      while (!/change request CR-001/.test(text) && Date.now() < deadline) {
+        const { value } = await Promise.race([reader.read(), new Promise((res) => setTimeout(() => res({ value: new Uint8Array() }), 200))]);
+        text += new TextDecoder().decode(value);
+      }
+      assert.match(text, /event: notify[\s\S]*change request CR-001/);
+      const ib = await (await fetch(`${base}/api/projects/${pid}/inbox`, { headers: h })).json();
+      assert.equal(ib.crs[0].id, 'CR-001');
+      const dec = await fetch(`${base}/api/projects/${pid}/decisions`, { method: 'POST', headers: h, body: JSON.stringify({ kind: 'cr', id: 'CR-001', action: 'apply' }) });
+      assert.equal(dec.status, 201);
+      reader.cancel();
+    } finally {
+      await c.close();
+    }
+  });
+});

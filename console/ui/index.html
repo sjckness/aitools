@@ -57,13 +57,36 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
 .live{display:inline-flex;align-items:center;gap:6px;font:11px var(--mono);color:var(--mut)}
 @media (prefers-reduced-motion:no-preference){.pulse{animation:p 1.6s ease-in-out infinite}@keyframes p{50%{opacity:.35}}}
+
+.tabs{display:flex;gap:4px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:4px}
+.tabs button{flex:1;min-height:36px;border:0;background:transparent;color:var(--fg2);padding:6px 10px}
+.tabs button[aria-selected=true]{background:var(--acc);color:#14100A}
+.pane[hidden]{display:none}
+.msgs{display:flex;flex-direction:column;gap:10px;height:420px;overflow:auto;padding:4px 2px}
+.msg{max-width:92%;padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.user{align-self:flex-end;background:#2A2213;border:1px solid #4A3A16;color:var(--fg)}
+.msg.assistant{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);color:var(--fg2)}
+.msg.tool{align-self:flex-start;font:11px var(--mono);color:#79C0FF;padding:2px 4px;background:none;border:0}
+.msg.err{border-color:#5a2424;color:#F85149}
+.compose{display:flex;gap:8px;align-items:flex-end}.compose textarea{min-height:44px;height:44px}
+.item{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.item .what{font-size:13px}.item .btns button{min-height:34px;padding:4px 12px;font-size:12px}
+.count{display:inline-block;min-width:18px;padding:0 6px;margin-left:4px;border-radius:999px;background:#F8514933;color:#F85149;font:11px/18px var(--mono)}
+.tabs button[aria-selected=true] .count{background:#14100A33;color:#14100A}
+#toasts{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:10;max-width:min(360px,calc(100vw - 32px))}
+.toast{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:10px;padding:10px 12px;box-shadow:0 8px 24px #0008}
+.toast b{display:block;font-size:13px}.toast span{font-size:12px;color:var(--mut)}
+.toast.error{border-left-color:#F85149}.toast.warn{border-left-color:#E3B341}
+.topr{display:flex;align-items:center;gap:12px}
+#bell{min-height:32px;padding:4px 10px;font-size:12px}
 </style>
 </head>
 <body>
 <div class="top">
   <a class="brand" href="#/"><i aria-hidden="true"></i>sjck console</a>
-  <span class="crumb" id="crumb"></span>
+  <div class="topr"><span class="crumb" id="crumb"></span><button type="button" id="bell" title="Desktop notifications">Notifications: off</button></div>
 </div>
+<div id="toasts" role="status" aria-live="polite"></div>
 <main id="app"></main>
 <script>
 (function(){
@@ -105,12 +128,18 @@ function project(id){
   app.innerHTML='<div class="wrap"><div class="row" style="flex-wrap:wrap;align-items:flex-end"><div style="min-width:0"><h1 id="pname">…</h1><div class="path" id="ppath"></div></div>'+
     '<div class="btns"><span class="live" id="live"><i class="dot" style="background:#6B7585"></i>connecting</span><button class="danger" id="rm" type="button">Remove</button></div></div>'+
     '<div class="proj"><div class="viewer"><iframe id="view" title="Run Viewer" src="/p/'+esc(id)+'/view"></iframe></div>'+
-    '<div class="side"><section class="card"><h2>Task</h2>'+
+    '<div class="side"><div class="tabs" role="tablist"><button type="button" role="tab" data-p="task" aria-selected="true">Task</button><button type="button" role="tab" data-p="chat" aria-selected="false">Chat</button><button type="button" role="tab" data-p="inbox" aria-selected="false">Inbox<span class="count" id="icount" hidden></span></button></div>'+
+    '<div class="pane" id="pane-task" style="display:flex;flex-direction:column;gap:16px"><section class="card"><h2>Task</h2>'+
     '<label for="task">What should the graph do?</label><textarea id="task" placeholder="Add load/start/abort services to mission_manager_node"></textarea>'+
     '<div class="btns"><label for="mode">Mode</label><select id="mode"><option value="">auto</option><option>S</option><option>M</option><option>L</option></select>'+
     '<button class="primary" id="plan" type="button">Plan</button><button id="run" type="button">Run</button><button class="danger" id="stop" type="button" hidden>Stop</button></div>'+
     '<div class="sub">Plan prepares and optimizes the graph without running it. Run executes it, or the approved plan if the task is empty.</div><div class="err" id="err"></div></section>'+
-    '<section class="card"><div class="row"><h2>Run log</h2><span class="meta" id="rstate">idle</span></div><div class="log" id="log" role="log" aria-live="polite"></div></section></div></div></div>';
+    '<section class="card"><div class="row"><h2>Run log</h2><span class="meta" id="rstate">idle</span></div><div class="log" id="log" role="log" aria-live="polite"></div></section></div>'+
+    '<div class="pane" id="pane-chat" hidden><section class="card"><div class="row"><h2>Chat with the planner</h2><button type="button" id="creset" style="min-height:32px;padding:4px 10px;font-size:12px">New chat</button></div>'+
+    '<div class="sub">Discuss changes to the plan. Agreed changes become change requests that the orchestrator applies live.</div>'+
+    '<div class="msgs" id="msgs" role="log" aria-live="polite"></div><form class="compose" id="cform"><label for="cin" style="position:absolute;left:-9999px">Message</label><textarea id="cin" placeholder="Also add a node that tests the abort service…"></textarea><button class="primary" type="submit" id="csend">Send</button></form><div class="err" id="cerr"></div></section></div>'+
+    '<div class="pane" id="pane-inbox" hidden><section class="card"><h2>Inbox</h2><div class="sub">Your decisions are written to <code>.sjck/decisions/</code>; the orchestrator applies them at its next step.</div><div id="ibox" style="display:flex;flex-direction:column;gap:10px"></div><div class="err" id="ierr"></div></section></div>'+
+    '</div></div></div>';
   api('/api/projects/'+id).then(function(p){document.getElementById('pname').textContent=p.name;document.getElementById('ppath').textContent=p.path;crumb.textContent='projects / '+p.name})
     .catch(function(e){app.innerHTML='<div class="wrap"><div class="empty">'+esc(e.message)+' — <a href="#/">back</a></div></div>'});
   var log=document.getElementById('log');
@@ -136,8 +165,69 @@ function project(id){
   es.addEventListener('log',function(e){add(JSON.parse(e.data).line)});
   es.addEventListener('run',function(e){var info=JSON.parse(e.data);running(false,info);try{frame.contentWindow.location.reload()}catch(_){}});
   es.onerror=function(){live.innerHTML='<i class="dot" style="background:#F85149"></i>reconnecting'};
+  Array.prototype.forEach.call(document.querySelectorAll('.tabs [data-p]'),function(b){b.onclick=function(){
+    Array.prototype.forEach.call(document.querySelectorAll('.tabs [data-p]'),function(x){x.setAttribute('aria-selected',x===b)});
+    ['task','chat','inbox'].forEach(function(k){var el=document.getElementById('pane-'+k);el.hidden=k!==b.getAttribute('data-p');el.style.display=el.hidden?'none':'flex';el.style.flexDirection='column';el.style.gap='16px'});
+    if(b.getAttribute('data-p')==='chat'){var m=document.getElementById('msgs');m.scrollTop=m.scrollHeight}}});
+  setupChat(id);loadInbox(id);
+  es.addEventListener('data',function(){loadInbox(id)});
+  es.addEventListener('chat',function(e){onChat(JSON.parse(e.data))});
 }
 
+var chatPending=null;
+function bubble(m){var d=document.createElement('div');d.className='msg '+(m.role||'assistant')+(m.error?' err':'');d.textContent=m.text;if(!m.live&&m.role!=='tool')d.dataset.kept='1';return d}
+function addMsg(m){var box=document.getElementById('msgs');if(!box)return;var stick=box.scrollTop+box.clientHeight>=box.scrollHeight-30;box.appendChild(bubble(m));if(stick)box.scrollTop=box.scrollHeight}
+function chatBusy(on){var b=document.getElementById('csend');if(b){b.disabled=on;b.textContent=on?'…':'Send'}}
+function setupChat(id){
+  api('/api/projects/'+id+'/chat').then(function(c){var box=document.getElementById('msgs');if(!box)return;box.innerHTML='';
+    if(!c.messages.length)box.innerHTML='<div class="sub" style="margin:auto;text-align:center">The planner knows the current run. Ask for additions, edits or re-runs.</div>';
+    c.messages.forEach(addMsg);chatBusy(c.busy)}).catch(function(){});
+  document.getElementById('cform').onsubmit=function(e){e.preventDefault();var t=document.getElementById('cin'),v=t.value.trim();if(!v)return;
+    document.getElementById('cerr').textContent='';var box=document.getElementById('msgs');if(box.querySelector('.sub'))box.innerHTML='';
+    api('/api/projects/'+id+'/chat',{method:'POST',body:JSON.stringify({message:v})}).then(function(){t.value='';chatBusy(true)})
+    .catch(function(err){document.getElementById('cerr').textContent=err.message})};
+  document.getElementById('cin').onkeydown=function(e){if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();document.getElementById('cform').requestSubmit()}};
+  document.getElementById('creset').onclick=function(){api('/api/projects/'+id+'/chat/reset',{method:'POST'}).then(function(){setupChat(id)}).catch(function(err){document.getElementById('cerr').textContent=err.message})};
+}
+function onChat(ev){
+  if(ev.type==='message')addMsg(ev.message);
+  else if(ev.type==='delta')addMsg(ev.kind==='tool'?{role:'tool',text:ev.text}:{role:'assistant',text:ev.text,live:true});
+  else if(ev.type==='done'){var box=document.getElementById('msgs');if(box){Array.prototype.slice.call(box.querySelectorAll('.msg.assistant,.msg.tool')).forEach(function(n){if(n.dataset.kept!=='1')n.remove()});
+    var b=bubble(ev.message);b.dataset.kept='1';box.appendChild(b);box.scrollTop=box.scrollHeight;
+    Array.prototype.forEach.call(box.querySelectorAll('.msg'),function(n){n.dataset.kept='1'})}chatBusy(false)}
+}
+var SEVC={high:'#F85149',med:'#E3B341',low:'#8B95A5'};
+function loadInbox(id){
+  api('/api/projects/'+id+'/inbox').then(function(ib){var box=document.getElementById('ibox');if(!box)return;
+    var open=ib.findings.filter(function(f){return !f.decided}).length+ib.crs.filter(function(c){return c.status==='proposed'&&!c.decided}).length;
+    var cnt=document.getElementById('icount');cnt.hidden=!open;cnt.textContent=open;
+    var h='';
+    if(ib.status==='planned')h+='<div class="item"><div class="row"><b>Plan ready</b>'+badge('planned')+'</div><div class="what">Review it in the Graph view, then approve to run it.</div><div class="btns"><button class="primary" type="button" id="approve">Approve and run</button></div></div>';
+    ib.crs.slice().reverse().forEach(function(c){var act=c.status==='proposed'&&!c.decided;
+      h+='<div class="item"><div class="row"><b style="font-family:var(--mono)">'+esc(c.id)+'</b>'+badge(c.status==='applied'?'validated':c.status==='rejected'?'failed':'planned').replace(/>[^<]*</,'>'+esc(c.status)+'<')+'</div>'+
+        '<div class="what">'+esc(c.summary)+'</div><div class="meta">'+esc(c.priority)+' · '+esc(c.ops.join(', '))+(c.resolution?' · '+esc(c.resolution):'')+'</div>'+
+        (act?'<div class="btns"><button class="primary" type="button" data-d="cr:'+esc(c.id)+':apply">Apply</button><button type="button" data-d="cr:'+esc(c.id)+':reject">Reject</button></div>':c.decided?'<div class="meta">decided: '+esc(c.decided)+' — waiting for the orchestrator</div>':'')+'</div>'});
+    ib.findings.forEach(function(f){var c=SEVC[f.severity]||'#8B95A5';
+      h+='<div class="item"><div class="row"><b style="font-family:var(--mono)">'+esc(f.id)+' <span class="meta">from '+esc(f.from||'')+'</span></b><span class="badge" style="color:'+c+';background:'+c+'22">'+esc(f.severity||'')+'</span></div>'+
+        '<div class="what">'+esc(f.what)+'</div>'+(f.file?'<div class="meta">'+esc(f.file)+'</div>':'')+
+        (f.decided?'<div class="meta">decided: '+esc(f.decided)+' — waiting for the orchestrator</div>':'<div class="btns"><button class="primary" type="button" data-d="finding:'+esc(f.id)+':accept">Accept</button><button type="button" data-d="finding:'+esc(f.id)+':defer">Later</button><button type="button" data-d="finding:'+esc(f.id)+':reject">Reject</button></div>')+'</div>'});
+    box.innerHTML=h||'<div class="empty">Nothing waiting for you.</div>';
+    Array.prototype.forEach.call(box.querySelectorAll('[data-d]'),function(b){b.onclick=function(){var p=b.getAttribute('data-d').split(':');
+      Array.prototype.forEach.call(b.parentNode.querySelectorAll('button'),function(x){x.disabled=true});
+      api('/api/projects/'+id+'/decisions',{method:'POST',body:JSON.stringify({kind:p[0],id:p[1],action:p[2]})}).then(function(){loadInbox(id)})
+      .catch(function(err){document.getElementById('ierr').textContent=err.message;loadInbox(id)})}});
+    var ap=document.getElementById('approve');if(ap)ap.onclick=function(){ap.disabled=true;
+      api('/api/projects/'+id+'/runs',{method:'POST',body:JSON.stringify({task:'',kind:'run'})}).then(function(){toast({level:'info',title:'Plan approved',body:'Run started from the console'})})
+      .catch(function(err){document.getElementById('ierr').textContent=err.message;ap.disabled=false})};
+  }).catch(function(){});
+}
+function toast(n){var t=document.getElementById('toasts'),d=document.createElement('div');d.className='toast '+(n.level||'info');
+  d.innerHTML='<b></b><span></span>';d.firstChild.textContent=n.title;d.lastChild.textContent=n.body||'';t.appendChild(d);setTimeout(function(){d.remove()},8000)}
+var bell=document.getElementById('bell');
+function bellLabel(){var on=window.Notification&&Notification.permission==='granted';bell.textContent='Notifications: '+(on?'on':'off');bell.hidden=!window.Notification}
+bellLabel();bell.onclick=function(){if(window.Notification)Notification.requestPermission().then(bellLabel)};
+(function(){var g=new EventSource('/api/events');g.addEventListener('notify',function(e){var n=JSON.parse(e.data);toast(n);
+  if(window.Notification&&Notification.permission==='granted'&&document.hidden){try{var nn=new Notification(n.title,{body:n.body||'',tag:n.project});nn.onclick=function(){window.focus();location.hash='#/p/'+n.project}}catch(_){}}})})();
 function route(){var m=/^#\/p\/([a-f0-9]{10})$/.exec(location.hash);if(m)project(m[1]);else home()}
 window.addEventListener('hashchange',route);route();
 })();

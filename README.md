@@ -69,7 +69,7 @@ node, budgets), then hands over a `planned` state that `/sjck-run` executes
 without re-planning. For small tasks it tells you so and advises against the
 graph.
 
-Other commands: `/sjck-status` (state without running anything) and
+Other commands: `/sjck-status` (state without running anything), `/sjck-change` (change a running plan) and
 `/sjck-eval --dry-run` (eval harness to compare kit versions; loads the
 checked-out plugin with `--plugin-dir`).
 
@@ -184,10 +184,36 @@ sjck serve                             # opens http://localhost:7777
 
 It listens on localhost only and needs the token in the link it prints. Runs go
 through your own Claude Code login (`claude -p`), never an API key in the page.
-The console only reads `.sjck/` and writes its run logs; the orchestrator stays
-the single writer of the run state. Next: chat with the planner and approve
-findings and change requests from the page — see the
-[spec](docs/specs/console.md).
+The console never writes the run state: the orchestrator stays its single
+writer.
+
+**Steer a live run.** The project page has three tabs next to the viewer:
+
+- **Task** — Plan or Run, with the agent log streaming.
+- **Chat** — talk with the planner (`sjck-change`) about the run in progress.
+  Agreed changes become a change request in `.sjck/changes/`, with their impact
+  (what re-runs, plan score, token estimate) shown before anything is written.
+  The chat agent can only read and write change requests.
+- **Inbox** — approve or reject change requests, accept / defer / reject
+  findings, approve a `planned` plan. Decisions go to `.sjck/decisions/`; the
+  orchestrator applies them at its next step with `inbox.py`, re-running only
+  what a change invalidates.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/img/console-chat.png" alt="Chat with the planner next to the live graph"></td>
+<td width="50%"><img src="docs/img/console-inbox.png" alt="Inbox with a change request and findings waiting for a decision"></td>
+</tr>
+</table>
+
+**Notifications.** Toasts in the page, desktop notifications (button in the
+top bar) when a node fails or blocks, a run ends, a plan is ready or a new
+finding or change request arrives. For your phone, add a webhook such as
+[ntfy](https://ntfy.sh) to `~/.sjck/console.json`:
+`"notify": {"webhook": "https://ntfy.sh/<your-private-topic>"}`.
+
+The same change requests work without the console: open a second Claude Code
+session in the repo and use `/sjck-change`.
 
 <details>
 <summary>Home screen</summary>
@@ -212,7 +238,7 @@ hand-written lines and actually runs the build/test commands it documents.
 |---|---|
 | ✅ 0.3 | anti-loop watchdog, findings with approval, critic, model/effort per node, eval harness — [spec](docs/specs/v0.3.md) |
 | **0.4** | token analytics from real transcripts, no-kit baseline — [spec](docs/specs/v0.4-token-analytics.md) |
-| **next** | console phase 2: chat with the planner, approvals, live change requests — [spec](docs/specs/console.md), [spec](docs/specs/change-requests.md) |
+| ✅ console 2 | chat with the planner, approvals, live change requests, notifications — [spec](docs/specs/console.md), [spec](docs/specs/change-requests.md) |
 | 0.5 | memory across runs (`lessons.md`) |
 | beyond | job runner for heavy workloads, multi-machine, agent optimizer |
 

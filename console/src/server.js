@@ -7,6 +7,9 @@ import { fileURLToPath } from 'node:url';
 import * as config from './config.js';
 import { collect, embed, fingerprint, summary } from './data.js';
 import { Runner } from './runner.js';
+import { Chat } from './chat.js';
+import { inbox, writeDecision } from './inbox.js';
+import { diff, push, snapshot } from './notify.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const UI = join(HERE, '..', 'ui');
@@ -64,8 +67,12 @@ function same(a, b) {
   return timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
 
-export function createConsole({ host = '127.0.0.1', port = 7777, token = randomBytes(24).toString('hex'), pollMs = 1000 } = {}) {
+export function createConsole({ host = '127.0.0.1', port = 7777, token = randomBytes(24).toString('hex'), pollMs = 1000, notifyMs = 2000 } = {}) {
   const runner = new Runner();
+  const chat = new Chat();
+  const globalStreams = new Set();
+  const snaps = new Map();
+  let notifyTimer = null;
   const streams = new Map(); // projectId -> Set<res>
   let timer = null;
   const prints = new Map();
@@ -76,7 +83,33 @@ export function createConsole({ host = '127.0.0.1', port = 7777, token = randomB
     }
   }
   runner.on('log', (pid, line) => broadcast(pid, 'log', { line }));
-  runner.on('end', (pid, info) => broadcast(pid, 'run', info));
+  runner.on('end', (pid, info) => {
+    broadcast(pid, 'run', info);
+    const p = config.getProject(pid);
+    notify({ level: info.exitCode === 0 ? 'info' : 'error', title: `${p ? p.name : pid}: console ${info.kind} ${info.exitCode === 0 ? 'finished' : 'exited ' + info.exitCode}`, body: info.task || '', project: pid });
+  });
+  chat.on('message', (pid, m) => broadcast(pid, 'chat', { type: 'message', message: m }));
+  chat.on('delta', (pid, d) => broadcast(pid, 'chat', { type: 'delta', ...d }));
+  chat.on('done', (pid, m) => broadcast(pid, 'chat', { type: 'done', message: m }));
+
+  function notify(n) {
+    for (const res of globalStreams) res.write(`event: notify\ndata: ${JSON.stringify(n)}\n\n`);
+    const hook = config.load().notify && config.load().notify.webhook;
+    if (hook) push(hook, n);
+  }
+
+  function watchAll() {
+    for (const p of config.load().projects) {
+      let cur;
+      try {
+        cur = snapshot(p.path);
+      } catch {
+        continue;
+      }
+      for (const n of diff(snaps.get(p.id), cur, p.name)) notify({ ...n, project: p.id });
+      snaps.set(p.id, cur);
+    }
+  }
 
   function poll() {
     for (const pid of streams.keys()) {
@@ -140,6 +173,15 @@ export function createConsole({ host = '127.0.0.1', port = 7777, token = randomB
       }
     }
 
+    if (path === '/api/events' && req.method === 'GET') {
+      res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
+      res.write('event: hello\ndata: {}\n\n');
+      globalStreams.add(res);
+      const ping = setInterval(() => res.write(': ping\n\n'), 25000);
+      req.on('close', () => { clearInterval(ping); globalStreams.delete(res); });
+      return undefined;
+    }
+
     m = /^\/api\/projects\/([a-f0-9]{10})(\/[a-z/]+)?$/.exec(path);
     if (!m) return send(res, 404, { error: 'not found' });
     const p = config.getProject(m[1]);
@@ -162,6 +204,34 @@ export function createConsole({ host = '127.0.0.1', port = 7777, token = randomB
       }
     }
     if (sub === '/runs/stop' && req.method === 'POST') return send(res, 200, { stopped: runner.stop(p.id) });
+    if (sub === '/inbox' && req.method === 'GET') {
+      const d = collect(p.path);
+      return send(res, 200, { ...inbox(p.path, d ? d.findings : []), status: d ? d.state.status : 'idle' });
+    }
+    if (sub === '/decisions' && req.method === 'POST') {
+      try {
+        return send(res, 201, writeDecision(p.path, await readBody(req)));
+      } catch (e) {
+        return send(res, 400, { error: e.message });
+      }
+    }
+    if (sub === '/chat' && req.method === 'GET') return send(res, 200, { ...chat.load(p), busy: chat.busy.has(p.id) });
+    if (sub === '/chat' && req.method === 'POST') {
+      try {
+        const body = await readBody(req);
+        return send(res, 202, chat.send(p, body.message, config.load().claude));
+      } catch (e) {
+        return send(res, 400, { error: e.message });
+      }
+    }
+    if (sub === '/chat/reset' && req.method === 'POST') {
+      try {
+        chat.reset(p);
+        return send(res, 200, { ok: true });
+      } catch (e) {
+        return send(res, 409, { error: e.message });
+      }
+    }
     if (sub === '/events' && req.method === 'GET') {
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
       res.write(`event: hello\ndata: ${JSON.stringify({ run: runner.info(p.id) })}\n\n`);
@@ -188,13 +258,18 @@ export function createConsole({ host = '127.0.0.1', port = 7777, token = randomB
   return {
     server,
     runner,
+    chat,
     token,
+    notify,
     listen() {
       return new Promise((resolve, reject) => {
         server.once('error', reject);
         server.listen(port, host, () => {
           timer = setInterval(poll, pollMs);
           timer.unref();
+          watchAll();
+          notifyTimer = setInterval(watchAll, notifyMs);
+          notifyTimer.unref();
           const a = server.address();
           const h = host === '127.0.0.1' || host === '::1' ? 'localhost' : host;
           resolve(`http://${h}:${a.port}/?token=${token}`);
@@ -203,6 +278,8 @@ export function createConsole({ host = '127.0.0.1', port = 7777, token = randomB
     },
     close() {
       clearInterval(timer);
+      clearInterval(notifyTimer);
+      for (const r of globalStreams) r.end();
       for (const set of streams.values()) for (const r of set) r.end();
       for (const pid of runner.runs.keys()) runner.stop(pid);
       return new Promise((r) => server.close(() => r()));

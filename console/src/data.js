@@ -95,7 +95,7 @@ export function summary(root) {
 
 // Fingerprint of the watched files: changes whenever any of them is written.
 export function fingerprint(root) {
-  return WATCHED.map((f) => {
+  return [...WATCHED, 'changes', 'decisions'].map((f) => {
     try {
       const s = statSync(join(root, WORKDIR, f));
       return `${s.mtimeMs}:${s.size}`;

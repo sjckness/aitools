@@ -47,3 +47,5 @@ frontmatter dell'agente; valgono anche a SendMessage). Ripieghi: con
 `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` il modello non è sovrascrivibile; `CLAUDE_CODE_EFFORT_LEVEL`
 ha precedenza sull'effort; `xhigh`/`max` dipendono dal modello (ripiego `high`).
 Il budget non ha parametro di lancio: scrivilo nel prompt ("max N tool call").
+
+- `inbox.py`: change request e decisioni della console (pending, validate, next-id, apply [--dry-run], decisions [--apply]). Solo l'orchestratore esegue apply e decisions --apply: reference/inbox.md.

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2 + console 0.2.0 — 2026-10-26 · live change requests
+- sjck-graph: `scripts/inbox.py` (pending, validate, next-id, apply [--dry-run], decisions [--apply]): change request con op add_node, edit_card, set, remove_node, add_dep, rerun (a cascata sui dipendenti, output precedente in `.prev.json`), accept_finding, kit_change (solo proposta in `.sjck/kit-proposals/`). Rollback se il plan score diventa `reject`; exit 3 se tocca un nodo in esecuzione.
+- sjck-graph: skill e comando `/sjck-change` per discutere modifiche a un run in corso in una seconda sessione; l'orchestratore controlla l'inbox a ogni transizione (`reference/inbox.md`), unico a scrivere lo stato.
+- console: tab Chat (planner via `claude -p` con sessione ripresa, tool limitati a lettura + scrittura in `.sjck/changes/`), tab Inbox (apply/reject CR, accept/defer/reject findings, approva il piano), notifiche nella pagina, desktop e webhook (ntfy).
+- Test: 11 nuovi per inbox.py (124 nel plugin), 16 nella console.
+
 ## console 0.1.0 — 2026-10-26
 - Nuova app `console/` (Node ≥ 20, zero dipendenze): `sjck serve`, `sjck add/remove/list`.
 - Home con tutti i progetti registrati e stato live; pagina di progetto con Run Viewer aggiornato via SSE, pannello Task (Plan/Run con `claude -p`, modalità S/M/L, stop) e log del run in streaming.

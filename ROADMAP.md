@@ -12,11 +12,11 @@
 
 ## Console
 - [x] Fase 1: daemon, home dei progetti, Plan/Run dal browser, viewer live (`docs/specs/console.md`)
-- [ ] Fase 2: chat con il planner, approvazioni, notifiche
+- [x] Fase 2: chat con il planner, approvazioni, notifiche
 - [ ] Fase 3: analytics, multi-macchina, app desktop
 
 ## Prossimo — live change requests
-- [ ] Spec: `docs/specs/change-requests.md` (`/sjck-change` in una sessione separata, CR in `.sjck/changes/`, applicati dall'orchestratore a run in corso)
+- [x] `docs/specs/change-requests.md`: `/sjck-change`, CR in `.sjck/changes/`, applicati live da `inbox.py`
 
 ## v0.4 — token analytics
 - [ ] Spec: `docs/specs/v0.4-token-analytics.md` (consumo reale dai transcript, costo, dove si risparmia, baseline senza kit, token visualizer)
