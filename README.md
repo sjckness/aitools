@@ -56,9 +56,17 @@ quindi il viewer non si aggiorna da solo: lancia `/graph-view` quando vuoi.
 
 ```
 /onboard                                   # una volta per progetto: CLAUDE.md + mappa dei moduli
-/run-graph aggiungi i servizi load/start/abort al mission_manager_node
+/graph-plan aggiungi i servizi load/start/abort al mission_manager_node
+/run-graph                                 # esegue il piano approvato
 /graph-view                                # apre il Run Viewer nel browser
 ```
+
+`/graph-plan` è la modalità di pianificazione del kit: fa solo le domande che
+cambiano il piano, confronta almeno due alternative (nodi, percorso critico,
+token e tempo stimati), applica una checklist di ottimizzazioni spiegando ogni
+scelta (interfacce condivise, file disgiunti, grana dei nodi, modello ed effort
+per nodo, budget) e consegna un piano `planned` che `/run-graph` esegue senza
+ripianificare. Per task piccole te lo dice e ti sconsiglia il grafo.
 
 Per le task grandi non serve nemmeno `/run-graph`: la skill
 `graph-orchestration` si attiva da sola. Gli override hanno sempre la

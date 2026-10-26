@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2 — 2026-10-26
+- Nuova skill e comando `/graph-plan`: pianificazione guidata con domande mirate, alternative con stime di token e tempo, checklist di ottimizzazione e piano `planned` pronto per `/run-graph`.
+- `graph-orchestration` esegue un piano `planned` senza rifare triage e planner, rispettando modello, effort e budget per nodo; per task grandi e vaghe suggerisce `/graph-plan`.
+- Run Viewer: stato `planned` in ambra.
+
 ## 0.2.1 — 2026-10-26
 - Nuovo Run Viewer (`.graph/view.html`): una pagina con viste Grafo, Token e Findings, tema scuro, leggibile da telefono, nessuna libreria esterna (niente più Mermaid).
 - Il viewer legge in modo opzionale `tokens.json`, `token-report.json`, `findings.jsonl` e `watchdog.jsonl`; con uno stato v0.2 mostra solo il grafo.

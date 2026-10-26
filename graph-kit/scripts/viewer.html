@@ -65,7 +65,7 @@ code{font-family:var(--mono);font-size:12px;color:var(--fg2)}
 (function(){
 var D = JSON.parse(document.getElementById('data').textContent);
 var S = D.state || {}, T = D.tokens, R = D.report, F = D.findings || [], W = D.watchdog || [];
-var COL = {validated:'#3FB950',running:'#4C8DFF',done:'#A371F7',pending:'#6B7585',failed:'#F85149',blocked:'#E3B341','done-unverified':'#D4A72C'};
+var COL = {planned:'#F5A524',validated:'#3FB950',running:'#4C8DFF',done:'#A371F7',pending:'#6B7585',failed:'#F85149',blocked:'#E3B341','done-unverified':'#D4A72C'};
 var CAT = [['system','sistema + CLAUDE.md','#5B6B82'],['card','card','#F5A524'],['interfaces','interfacce','#FFD08A'],
   ['file_read_in_card','file in card','#3FB950'],['file_read_outside_card','file fuori card','#F85149'],
   ['tool_output','output tool','#4C8DFF'],['agent_messages','messaggi agenti','#A371F7'],['other','altro','#3A4250']];
@@ -153,7 +153,7 @@ function findingsView(){
 }
 
 function render(){
-  var st=S.status||'?',sc=st==='running'?'#4C8DFF':st==='done'?'#3FB950':st==='failed'?'#F85149':'#6B7585';
+  var st=S.status||'?',sc=st==='planned'?'#F5A524':st==='running'?'#4C8DFF':st==='done'?'#3FB950':st==='failed'?'#F85149':'#6B7585';
   var tabs=[['graph','Grafo'],['tokens','Token'],['findings','Findings'+(F.length?' · '+F.length:'')]];
   var h='<header><div style="min-width:0"><div class="eyebrow"><span style="display:inline-flex;align-items:center;gap:6px;color:'+sc+'"><i class="dot" style="background:'+sc+'"></i>'+esc(st)+'</span>'+
     '<span>·</span><span>modalità '+esc(S.mode||'?')+'</span>'+(S.started?'<span>·</span><span>iniziato '+esc(String(S.started).slice(11,16)||S.started)+'</span>':'')+'<span>·</span><span>aggiornato '+esc(D.updated)+'</span></div>'+

@@ -23,6 +23,12 @@ riga in `mode_reason`. Unica eccezione: senza validator un nodo non diventa
   aggiungi `.graph/` al .gitignore del repo, se manca.
 - Se esiste .graph/state.json con `status: running`, NON ripianificare:
   riprendi dal primo nodo non `validated` (Step 3).
+- Se esiste con `status: planned` (preparato da `graph-plan`), NON rifare
+  triage e piano: controlla solo che le card esistano, che i nodi paralleli
+  abbiano file disgiunti e che non ci siano cicli; poi imposta
+  `status: running` e vai allo Step 3. Rispetta `model`, `effort` e `budget`
+  di ogni nodo. Se il task dell'utente è diverso dal `goal` del piano, chiedi
+  quale eseguire.
 - Se esiste con `status: done|failed`, sposta state.json, cards/ e out/ in
   .graph/archive/<YYYYMMDD-HHMM>/ e riparti.
 - Leggi CLAUDE.md e .claude/map/ (se esistono) SOLO per scegliere i file
@@ -36,6 +42,9 @@ Stima con al massimo 3 chiamate Grep/Glob, senza leggere file interi.
 | S — inline | ≤3 file, un solo concern, nessuna incognita | Fai tu la task. Poi UN `validator` (salta solo per typo, rename, config di 1 riga). |
 | M — catena | 2-4 step sequenziali, o serve esplorare prima | Card scritte da te: scout → implementer → validator. Niente planner. |
 | L — DAG | ≥2 sottoparti indipendenti, >5 file o più package | planner → DAG → nodi paralleli, validator dopo OGNI nodo. |
+
+Se la task è grande e vaga (obiettivo poco chiaro, nessun modo evidente di
+verificarla), proponi in una riga di passare prima da `/graph-plan`.
 
 Nel dubbio scegli la modalità PIÙ PICCOLA. Puoi salire (S→M→L) se emergono
 incognite, registrandolo nel log; non scendere mai durante un run.
