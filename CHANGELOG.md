@@ -10,7 +10,8 @@
 - graph-kit: `model`, `effort` e budget per nodo.
 - Eval harness `evals/` e comando `/graph-eval`: usa il plugin del checkout (`--plugin-dir`) e permessi non interattivi di default (`--no-default-flags` per toglierli).
 - `install.sh`: copia solo file regolari; crea il `.bak` solo se l'utente ha modificato il file installato.
-- graph-kit: visualizzatore aggiornato (`scripts/graph_view.py`) per i campi v0.3.
+- graph-kit: il Run Viewer della 0.2.1 integrato con i campi v0.3 (modello/effort, budget, usage live da `watchdog_state.json`, eventi del watchdog, critico, plan score); `graph_view.collect()` prepara e pulisce i dati, il rendering avviene nel browser.
+- Integrati anche `/graph-plan` (0.2.2) e la demo `examples/demo/`.
 - graph-kit: `docs/limitations.md` con le limitazioni note.
 
 ### Limiti noti / da fare
@@ -22,6 +23,17 @@
 - Eval: nessun esito per trap (rabbit_hole, out_of_scope_bug); compare.py vede solo i totali (spec_gaps[4]).
 - Tra il lancio e la scrittura di `agent_id` i nodi lanciati insieme condividono il secchio comune; l'uguaglianza tra `agent_id` dell'hook e del tool di lancio non è documentata (residuo di spec_gaps[3]).
 - Formato di REVIEW.json in reviewer.md (`pass|fail`, findings stringhe) diverso da quello usato nell'ultima review (`ok|issues`, oggetti, `spec_gaps`, `checks`).
+
+## 0.2.2 — 2026-10-26
+- Nuova skill e comando `/graph-plan`: pianificazione guidata con domande mirate, alternative con stime di token e tempo, checklist di ottimizzazione e piano `planned` pronto per `/run-graph`.
+- `graph-orchestration` esegue un piano `planned` senza rifare triage e planner, rispettando modello, effort e budget per nodo; per task grandi e vaghe suggerisce `/graph-plan`.
+- Run Viewer: stato `planned` in ambra.
+
+## 0.2.1 — 2026-10-26
+- Nuovo Run Viewer (`.graph/view.html`): una pagina con viste Grafo, Token e Findings, tema scuro, leggibile da telefono, nessuna libreria esterna (niente più Mermaid).
+- Il viewer legge in modo opzionale `tokens.json`, `token-report.json`, `findings.jsonl` e `watchdog.jsonl`; con uno stato v0.2 mostra solo il grafo.
+- Scrittura atomica della pagina; si ricarica da sola solo mentre il run è in corso.
+- Demo in `examples/demo/` e README con screenshot.
 
 ## 0.2.0 — 2026-10-26
 - graph-kit: la logica è ora una skill (`graph-orchestration`) che Claude attiva da solo per task grandi; `/run-graph` resta come scorciatoia.

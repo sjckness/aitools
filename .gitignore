@@ -1,3 +1,4 @@
 .graph/
 __pycache__/
 evals/results/
+examples/demo/.graph/view.html

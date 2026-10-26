@@ -1,0 +1,25 @@
+{
+  "goal": "Implementa docs/specs/v0.3.md",
+  "mode": "L",
+  "mode_reason": "8 componenti con file disgiunti: schema prima, poi A–F in parallelo",
+  "status": "running",
+  "started": "2026-10-26T11:52:00",
+  "nodes": [
+    {"id": "T00", "title": "Schema di stato v0.3", "agent": "implementer", "model": "sonnet", "effort": "medium", "deps": [], "status": "validated", "attempts": 0, "budget": {"tool_calls": 40}, "usage": {"tool_calls": 18}},
+    {"id": "T01", "title": "Metriche di piano", "agent": "implementer", "model": "sonnet", "effort": "medium", "deps": ["T00"], "status": "validated", "attempts": 0, "budget": {"tool_calls": 40}, "usage": {"tool_calls": 22}},
+    {"id": "T02", "title": "Watchdog (hook)", "agent": "implementer", "model": "opus", "effort": "high", "deps": ["T00"], "status": "running", "attempts": 1, "budget": {"tool_calls": 60}, "usage": {"tool_calls": 51}},
+    {"id": "T03", "title": "Findings", "agent": "implementer", "model": "sonnet", "effort": "medium", "deps": ["T00"], "status": "validated", "attempts": 0, "budget": {"tool_calls": 40}, "usage": {"tool_calls": 19}},
+    {"id": "T04", "title": "Critico", "agent": "implementer", "model": "haiku", "effort": "low", "deps": ["T00"], "status": "validated", "attempts": 0, "budget": {"tool_calls": 25}, "usage": {"tool_calls": 9}},
+    {"id": "T05", "title": "Eval harness", "agent": "implementer", "model": "sonnet", "effort": "high", "deps": ["T00"], "status": "running", "attempts": 0, "budget": {"tool_calls": 60}, "usage": {"tool_calls": 34}},
+    {"id": "T06", "title": "Skill + modelli per nodo", "agent": "implementer", "model": "opus", "effort": "high", "deps": ["T01", "T02", "T03", "T04"], "status": "pending", "attempts": 0, "budget": {"tool_calls": 50}, "usage": {"tool_calls": 0}},
+    {"id": "T07", "title": "Visualizzatore", "agent": "implementer", "model": "sonnet", "effort": "medium", "deps": ["T01", "T02", "T03"], "status": "pending", "attempts": 0, "budget": {"tool_calls": 40}, "usage": {"tool_calls": 0}},
+    {"id": "T08", "title": "Docs e versione", "agent": "implementer", "model": "haiku", "effort": "low", "deps": ["T05", "T06", "T07"], "status": "pending", "attempts": 0, "budget": {"tool_calls": 20}, "usage": {"tool_calls": 0}}
+  ],
+  "plan_score": {"width": 5, "critical_path": 4, "file_overlap": 0, "avg_card_tokens": 1450, "verdict": "ok", "reasons": []},
+  "critic": [
+    {"at": "plan", "round": 1, "verdict": "object", "points": ["T06 e T07 modificano entrambi graph_view.py"], "resolution": ""},
+    {"at": "plan", "round": 2, "verdict": "approve", "points": [], "resolution": "T06 (skill) separato da T07 (viewer) per togliere la sovrapposizione su graph_view.py."}
+  ],
+  "log": ["11:58 T00 validated", "12:01 T01 validated", "12:04 T02 watchdog: 80% del budget", "12:08 T03 validated", "12:10 T04 validated", "12:15 T02 fail → retry 1", "12:19 T02 watchdog richiamo L1", "12:24 T05 tool call 34/60"],
+  "metrics": {"subagents": 13, "validator_fails": 1, "tool_calls": 153, "watchdog_warnings": 2, "watchdog_stops": 0, "findings": 4, "findings_accepted": 1}
+}

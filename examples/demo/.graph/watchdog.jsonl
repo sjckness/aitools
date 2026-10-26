@@ -1,0 +1,3 @@
+{"t":"12:04","node":"T02","level":1,"kind":"budget","text":"tool call oltre l'80% del budget"}
+{"t":"12:11","node":"T05","level":0,"kind":"read_outside","text":"lettura fuori card (src/legacy/*) contata"}
+{"t":"12:19","node":"T02","level":1,"kind":"loop","text":"stesso errore di CMake 3 volte → richiamo inviato"}
