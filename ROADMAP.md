@@ -10,6 +10,9 @@
 - [ ] Hook che blocca le scritture fuori dai `files` della card
 - [ ] Planner che stima il costo del DAG e lo confronta con la modalità M
 
-## v0.4 — memoria tra run
+## v0.4 — token analytics
+- [ ] Spec: `docs/specs/v0.4-token-analytics.md` (consumo reale dai transcript, costo, dove si risparmia, baseline senza kit, token visualizer)
+
+## v0.5 — memoria tra run
 - [ ] `.graph/lessons.md`: errori ricorrenti del validator, letti dal planner
 - [ ] Interfacce estratte dallo scout riusate tra run se il file non è cambiato
