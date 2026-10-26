@@ -2,36 +2,36 @@
 
 # sjck
 
-**Plugin per Claude Code che fanno lavorare gli agenti come un grafo:
-contesto minimo, step in parallelo, ogni passo validato prima del successivo.**
+**Claude Code plugins that make agents work as a graph:
+minimal context, parallel steps, every step validated before the next one.**
 
 `sjck-graph` · `sjck-onboard`
 
-<img src="docs/img/viewer-graph.png" alt="Run Viewer di sjck-graph: nodi del grafo per livello, KPI del run, critico, watchdog e log" width="100%">
+<img src="docs/img/viewer-graph.png" alt="sjck-graph Run Viewer: graph nodes by level, run KPIs, critic, watchdog and log" width="100%">
 
 </div>
 
 ---
 
-## Perché
+## Why
 
-Un agente solo che fa tutto riempie il contesto, si perde nei dettagli e porta
-avanti gli errori. `sjck-graph` fa il contrario:
+A single agent doing everything fills its context, gets lost in details and
+carries mistakes forward. `sjck-graph` does the opposite:
 
-- **Sceglie da solo quanto lavoro serve.** Task piccola → la fa direttamente.
-  Task grande → la scompone in un DAG e lancia gli agenti in parallelo.
-- **Ogni agente vede solo la sua card.** Obiettivo, file che può toccare,
-  criteri di accettazione. Niente esplorazione del repo.
-- **Nessun errore passa al nodo successivo.** Un validator scettico controlla
-  ogni nodo; si va avanti solo con `verdict: pass`.
-- **Lo stato vive su file.** `.sjck/state.json` è l'unica verità: se la
-  sessione cade, il run riprende da dove era.
-- **Vedi tutto, in tempo reale.** Il Run Viewer mostra grafo, token e findings
-  mentre il run procede.
+- **It decides how much machinery a task needs.** Small task → it just does it.
+  Large task → it breaks it into a DAG and runs agents in parallel.
+- **Each agent sees only its card.** Goal, files it may touch, acceptance
+  criteria. No exploring the repo.
+- **No error reaches the next node.** A skeptical validator checks every node;
+  the run only moves on with `verdict: pass`.
+- **State lives in files.** `.sjck/state.json` is the single source of truth:
+  if the session drops, the run resumes where it left off.
+- **See everything, live.** The Run Viewer shows the graph, tokens and findings
+  while the run is going.
 
-## Installazione
+## Install
 
-Dentro Claude Code, **una riga alla volta**:
+Inside Claude Code, **one line at a time**:
 
 ```
 /plugin marketplace add sjckness/sjckAI-tools
@@ -39,121 +39,126 @@ Dentro Claude Code, **una riga alla volta**:
 /plugin install sjck-onboard@sjck
 ```
 
-Aggiornare: `/plugin marketplace update sjck`.
+Update with `/plugin marketplace update sjck`.
 
 <details>
-<summary>Senza il sistema dei plugin</summary>
+<summary>Without the plugin system</summary>
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/sjckness/sjckAI-tools/main/install.sh | bash -s -- -g
 ```
 
-Copia agenti, comandi e skill in `~/.claude`. Senza plugin non ci sono hook:
-niente watchdog né aggiornamento live del viewer (usa `/sjck-view`).
+Copies agents, commands and skills into `~/.claude`. Without the plugin there
+are no hooks: no watchdog and no live viewer updates (use `/sjck-view`).
 </details>
 
-## Uso in 30 secondi
+## 30-second tour
 
 ```
-/sjck-onboard                                   # una volta per progetto: CLAUDE.md + mappa dei moduli
-/sjck-plan aggiungi i servizi load/start/abort al mission_manager_node
-/sjck-run                                 # esegue il piano approvato
-/sjck-view                                # apre il Run Viewer nel browser
+/sjck-onboard                                  # once per project: CLAUDE.md + module map
+/sjck-plan add load/start/abort services to mission_manager_node
+/sjck-run                                      # runs the approved plan
+/sjck-view                                     # opens the Run Viewer in your browser
 ```
 
-`/sjck-plan` è la modalità di pianificazione del kit: fa solo le domande che
-cambiano il piano, confronta almeno due alternative (nodi, percorso critico,
-token e tempo stimati), applica una checklist di ottimizzazioni spiegando ogni
-scelta (interfacce condivise, file disgiunti, grana dei nodi, modello ed effort
-per nodo, budget) e consegna un piano `planned` che `/sjck-run` esegue senza
-ripianificare. Per task piccole te lo dice e ti sconsiglia il grafo.
+`/sjck-plan` is the kit's planning mode. It only asks the questions that change
+the plan, compares at least two alternatives (nodes, critical path, estimated
+tokens and time), runs an optimization checklist and explains each choice
+(shared interfaces, disjoint files, node granularity, model and effort per
+node, budgets), then hands over a `planned` state that `/sjck-run` executes
+without re-planning. For small tasks it tells you so and advises against the
+graph.
 
-Altri comandi: `/sjck-status` (stato senza eseguire nulla) e `/sjck-eval --dry-run` (eval harness per confrontare le versioni del kit; carica il plugin del checkout con `--plugin-dir`).
+Other commands: `/sjck-status` (state without running anything) and
+`/sjck-eval --dry-run` (eval harness to compare kit versions; loads the
+checked-out plugin with `--plugin-dir`).
 
-Per le task grandi non serve nemmeno `/sjck-run`: la skill
-`sjck-orchestration` si attiva da sola. Gli override hanno sempre la
-precedenza:
-
-```
-/sjck-run refactor del logger --mode M
-/sjck-run fix del parser, usa solo implementer e validator
-```
-
-## Come lavora
+For large tasks you don't even need `/sjck-run`: the `sjck-orchestration`
+skill triggers on its own. Overrides always win:
 
 ```
-triage ──► S: inline ─────────────────► validator ─► fine
-       ├─► M: scout ► impl ► validator ─────────────► fine
-       └─► L: planner ► DAG ► [impl ► validator]×N ► reviewer ► fine
+/sjck-run refactor the logger --mode M
+/sjck-run fix the parser, only use implementer and validator
+```
+
+## How it works
+
+```
+triage ──► S: inline ─────────────────► validator ─► done
+       ├─► M: scout ► impl ► validator ─────────────► done
+       └─► L: planner ► DAG ► [impl ► validator]×N ► reviewer ► done
                                 ▲          │ fail (max 2)
                                 └──────────┘
 ```
 
-| Agente | Modello | Effort | Cosa vede |
+| Agent | Model | Effort | What it sees |
 |---|---|---|---|
-| planner | opus | high | il repo, una volta sola |
-| scout | haiku | low | la card; estrae interfacce per gli altri |
-| implementer | sonnet | medium | la card e i file elencati |
-| validator | sonnet | high | card, JSON di output, diff |
-| reviewer | opus | high | il diff aggregato |
-| critic | fable | high | proposta, plan score o findings, goal — mai il codice |
+| planner | opus | high | the repo, once |
+| scout | haiku | low | its card; extracts interfaces for the others |
+| implementer | sonnet | medium | its card and the listed files |
+| validator | sonnet | high | card, output JSON, diff |
+| reviewer | opus | high | the aggregated diff |
+| critic | fable | high | the proposal, plan score or findings, the goal — never code |
 
-Gli agenti si passano **file** in `.sjck/` (card, interfacce, JSON di output),
-non riassunti in chat. L'orchestratore legge solo i JSON: il suo contesto
-cresce di poche centinaia di token per nodo, non di migliaia.
+Agents pass **files** to each other in `.sjck/` (cards, interfaces, output
+JSON), not chat summaries. The orchestrator only reads the JSON, so its context
+grows by a few hundred tokens per node, not thousands.
 
-### Le difese del grafo
+### The graph's defenses
 
-**Plan score.** Prima di eseguire, `plan_score.py` calcola metriche del DAG
-(larghezza per livello, percorso critico, overlap di file tra nodi paralleli, token
-per card). Se il verdetto è `reject` il run non parte; viene rilanciato sui nodi
-aggiunti a run avviato.
+**Plan score.** Before running, `plan_score.py` computes DAG metrics (width per
+level, critical path, file overlap between parallel nodes, tokens per card). A
+`reject` verdict stops the run from starting; it is re-checked on nodes added
+mid-run.
 
-**Watchdog.** Hook del plugin: livello 1 richiama l'agente e blocca le scritture
-fuori dai `files` della card; livello 2 interviene se il pattern si ripete o il
-budget supera il 125%; livello 3 tocca all'orchestratore, che decide sul nodo bloccato.
-Gli hook attribuiscono ogni chiamata al nodo tramite `agent_id` (validator, critic,
-reviewer, planner sono ignorati). La usage sta in `.sjck/watchdog_state.json` e,
-a nodo completato, `watchdog.py usage` la copia in `state.json`.
+**Watchdog.** Plugin hooks: level 1 nudges the agent and blocks writes outside
+the card's `files`; level 2 steps in if the pattern repeats or the budget goes
+past 125%; level 3 belongs to the orchestrator, which decides what to do with
+the blocked node. Hooks attribute each call to its node via `agent_id`
+(validator, critic, reviewer and planner are ignored). Usage lives in
+`.sjck/watchdog_state.json` and `watchdog.py usage` copies it into
+`state.json` when a node completes.
 
-**Findings e backlog.** Gli agenti annotano cose fuori scope in `.sjck/findings.jsonl`
-invece di implementarle; a fine di ogni livello l'orchestratore fa dedupe e
-propone cosa spostare nel backlog.
+**Findings and backlog.** Agents log out-of-scope issues in
+`.sjck/findings.jsonl` instead of fixing them; at the end of each level the
+orchestrator deduplicates them and proposes what goes into the plan or the
+backlog.
 
-**Critico.** `critic` valuta in sola lettura piani, findings e nodi falliti e
-risponde approve o object, con un modello diverso dall'orchestratore.
+**Critic.** A read-only `critic` reviews plans, findings and failed nodes and
+answers approve or object, using a different model from the orchestrator.
 
-Schema di stato: [`sjck-graph/docs/state-schema.md`](sjck-graph/docs/state-schema.md). Limiti noti: [`sjck-graph/docs/limitations.md`](sjck-graph/docs/limitations.md).
+State schema: [`sjck-graph/docs/state-schema.md`](sjck-graph/docs/state-schema.md).
+Known limitations: [`sjck-graph/docs/limitations.md`](sjck-graph/docs/limitations.md).
 
 ## Run Viewer
 
-Una pagina sola, tre viste. Si rigenera a ogni scrittura in `.sjck/` (hook) e
-si ricarica da sola mentre il run è in corso.
+One page, three views. It is regenerated on every write to `.sjck/` (hook) and
+reloads itself while the run is in progress.
 
 <table>
 <tr>
-<td width="50%"><img src="docs/img/viewer-tokens.png" alt="Vista Token: barre per nodo divise per categoria di contesto, confronto con la baseline e insights"></td>
-<td width="50%"><img src="docs/img/viewer-findings.png" alt="Vista Findings: problemi trovati dagli agenti con severità e posizione proposta nel piano"></td>
+<td width="50%"><img src="docs/img/viewer-tokens.png" alt="Tokens view: per-node bars split by context category, baseline comparison and insights"></td>
+<td width="50%"><img src="docs/img/viewer-findings.png" alt="Findings view: issues found by agents with severity and proposed placement in the plan"></td>
 </tr>
 <tr>
-<td><b>Token</b> — dove va il contesto di ogni nodo (sistema, card, file
-dentro/fuori card, output dei tool, messaggi), kit vs agente singolo, e dove
-si risparmia o si spreca.</td>
-<td><b>Findings</b> — ciò che gli agenti trovano fuori scope: annotato, non
-inseguito. Tu decidi se e dove entra nel piano.</td>
+<td><b>Tokens</b> — where each node's context goes (system, card, files
+inside/outside the card, tool output, messages), kit vs single agent, and where
+tokens are saved or wasted.</td>
+<td><b>Findings</b> — what agents found out of scope: logged, not chased. You
+decide whether and where it enters the plan.</td>
 </tr>
 </table>
 
-<img align="right" src="docs/img/viewer-mobile.png" alt="Run Viewer su telefono" width="200">
+<img align="right" src="docs/img/viewer-mobile.png" alt="Run Viewer on a phone" width="200">
 
-**Grafo** — nodi per livello con stato, modello ed effort, tentativi, tool call
-rispetto al budget e token. A lato: verdetto del critico, eventi del watchdog,
+**Graph** — nodes by level with status, model and effort, attempts, tool calls
+against budget, and tokens. On the side: the critic's verdict, watchdog events,
 log.
 
-Funziona anche dal telefono, e degrada con eleganza: con uno `state.json` della
-v0.2 mostra il grafo; token e findings compaiono quando i file esistono.
+It works on a phone too, and degrades gracefully: with a v0.2 `state.json` it
+shows the graph; tokens and findings appear once their files exist.
 
-Prova la demo senza lanciare nulla:
+Try the demo without running anything:
 
 ```bash
 python3 sjck-graph/scripts/graph_view.py --cwd examples/demo --open
@@ -165,26 +170,26 @@ python3 sjck-graph/scripts/graph_view.py --cwd examples/demo --open
 
 ```
 /sjck-onboard
-/sjck-onboard solo f1tenth_behavior
+/sjck-onboard only f1tenth_behavior
 ```
 
-Produce un `CLAUDE.md` corto (≈120 righe, caricato in ogni sessione) e un file
-per modulo in `.claude/map/` (letto solo quando serve). Non sovrascrive le righe
-scritte a mano e verifica davvero i comandi di build/test che documenta.
+Produces a short `CLAUDE.md` (≈120 lines, loaded in every session) and one file
+per module in `.claude/map/` (read only when needed). It never overwrites
+hand-written lines and actually runs the build/test commands it documents.
 
 ## Roadmap
 
-| Versione | Cosa |
+| Version | What |
 |---|---|
-| ✅ 0.3 | watchdog anti-loop, findings con approvazione, critico, modello/effort per nodo, eval harness — [spec](docs/specs/v0.3.md) |
-| **0.4** | token analytics dai transcript reali, baseline senza kit — [spec](docs/specs/v0.4-token-analytics.md) |
-| 0.5 | memoria tra run (`lessons.md`) |
-| oltre | job runner per lavori pesanti, multi-macchina, optimizer degli agenti |
+| ✅ 0.3 | anti-loop watchdog, findings with approval, critic, model/effort per node, eval harness — [spec](docs/specs/v0.3.md) |
+| **0.4** | token analytics from real transcripts, no-kit baseline — [spec](docs/specs/v0.4-token-analytics.md) |
+| 0.5 | memory across runs (`lessons.md`) |
+| beyond | job runner for heavy workloads, multi-machine, agent optimizer |
 
-Le spec si eseguono con il kit stesso:
-`/sjck-run implementa docs/specs/v0.3.md --mode L`.
+Specs are executed with the kit itself:
+`/sjck-run implement docs/specs/v0.4-token-analytics.md --mode L`.
 
-## Contribuire
+## Contributing
 
-Ogni modifica va con una riga in [`CHANGELOG.md`](CHANGELOG.md) e, quando
-possibile, con le metriche di un run prima/dopo. Licenza [MIT](LICENSE).
+Every change comes with a line in [`CHANGELOG.md`](CHANGELOG.md) and, when
+possible, before/after run metrics. Licensed under [MIT](LICENSE).
