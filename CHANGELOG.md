@@ -1,12 +1,12 @@
 # Changelog
 
 ## 0.3.1 — 2026-10-26 · rebranding sjck
-- Marketplace `sjck` (repo `sjckness/sjck`); plugin `graph-kit` → `sjck-graph`, `project-onboard` → `sjck-onboard`.
+- Marketplace `sjck` (repo `sjckness/sjckAI-tools`); plugin `graph-kit` → `sjck-graph`, `project-onboard` → `sjck-onboard`.
 - Comandi: `/sjck-run`, `/sjck-plan`, `/sjck-status`, `/sjck-view`, `/sjck-eval`, `/sjck-onboard`.
 - Skill: `sjck-orchestration`, `sjck-planning`, `sjck-onboarding`. Agenti: `sjck-planner`, `sjck-scout`, `sjck-implementer`, `sjck-validator`, `sjck-reviewer`, `sjck-critic` (niente conflitti con agenti di altri plugin).
 - Cartella di lavoro `.sjck/` al posto di `.graph/`; script installati in `~/.claude/sjck-scripts`; variabili `SJCK_REPO`, `SJCK_REF`.
 - Watchdog: riconosce i ruoli degli agenti anche con il prefisso `sjck-`.
-- Migrazione: `/plugin uninstall graph-kit@aitools` e `project-onboard@aitools`, poi `/plugin marketplace add sjckness/sjck` e installa i nuovi. Un run in corso in `.graph/` si riprende rinominando la cartella in `.sjck/`.
+- Migrazione: `/plugin uninstall graph-kit@aitools` e `project-onboard@aitools`, poi `/plugin marketplace add sjckness/sjckAI-tools` e installa i nuovi. Un run in corso in `.graph/` si riprende rinominando la cartella in `.sjck/`.
 
 ## 0.3.0 — 2026-10-26
 - graph-kit: schema di stato v0.3 (`docs/state-schema.md`) con validazione in `scripts/state_schema.py`.

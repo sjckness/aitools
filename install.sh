@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Installazione senza plugin: copia agenti e comandi in un progetto o globalmente.
-#   curl -fsSL https://raw.githubusercontent.com/sjckness/sjck/main/install.sh | bash            # progetto corrente
-#   curl -fsSL https://raw.githubusercontent.com/sjckness/sjck/main/install.sh | bash -s -- -g  # globale (~/.claude)
+#   curl -fsSL https://raw.githubusercontent.com/sjckness/sjckAI-tools/main/install.sh | bash            # progetto corrente
+#   curl -fsSL https://raw.githubusercontent.com/sjckness/sjckAI-tools/main/install.sh | bash -s -- -g  # globale (~/.claude)
 set -euo pipefail
 
-REPO="${SJCK_REPO:-sjckness/sjck}"
+REPO="${SJCK_REPO:-sjckness/sjckAI-tools}"
 REF="${SJCK_REF:-main}"
 DEST="./.claude"
 [[ "${1:-}" == "-g" || "${1:-}" == "--global" ]] && DEST="$HOME/.claude"

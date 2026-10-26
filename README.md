@@ -34,7 +34,7 @@ avanti gli errori. `sjck-graph` fa il contrario:
 Dentro Claude Code, **una riga alla volta**:
 
 ```
-/plugin marketplace add sjckness/sjck
+/plugin marketplace add sjckness/sjckAI-tools
 /plugin install sjck-graph@sjck
 /plugin install sjck-onboard@sjck
 ```
@@ -45,7 +45,7 @@ Aggiornare: `/plugin marketplace update sjck`.
 <summary>Senza il sistema dei plugin</summary>
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sjckness/sjck/main/install.sh | bash -s -- -g
+curl -fsSL https://raw.githubusercontent.com/sjckness/sjckAI-tools/main/install.sh | bash -s -- -g
 ```
 
 Copia agenti, comandi e skill in `~/.claude`. Senza plugin non ci sono hook:
