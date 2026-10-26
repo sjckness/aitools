@@ -1,0 +1,4 @@
+{"id":"F01","from":"T02","file":"graph-kit/scripts/watchdog.py","kind":"bug","severity":"high","what":"Gli hook non ricevono l'id del subagente","placement":"card T06, sezione limiti","status":"proposed"}
+{"id":"F02","from":"T05","file":"evals/tasks/m1/check.sh","kind":"bug","severity":"med","what":"check.sh usa bash 5: fallisce su macOS","placement":"nuovo nodo dopo T05","status":"proposed"}
+{"id":"F03","from":"T03","file":"README.md:42","kind":"doc","severity":"low","what":"README cita ancora state.yaml","placement":"card T08","status":"accepted"}
+{"id":"F04","from":"T01","kind":"debt","severity":"low","what":"Idea: stima del costo del DAG prima del run","placement":"backlog","status":"deferred"}

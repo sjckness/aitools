@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>graph-kit · Run Viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0B0E13;--panel:#12161D;--panel2:#171C25;--line:#232A35;--line2:#1C222C;--fg:#E6EAF0;--fg2:#C3CAD5;--mut:#8B95A5;--acc:#F5A524;
+--validated:#3FB950;--running:#4C8DFF;--done:#A371F7;--pending:#6B7585;--failed:#F85149;--blocked:#E3B341;--unverified:#D4A72C;
+--mono:'IBM Plex Mono',ui-monospace,monospace;--sans:'IBM Plex Sans',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 var(--sans)}
+.wrap{max-width:1360px;margin:0 auto;padding:24px 16px 64px;display:flex;flex-direction:column;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.eyebrow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font:12px var(--mono);color:var(--mut);letter-spacing:.08em;text-transform:uppercase}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+h1{margin:4px 0 0;font-size:28px;font-weight:600;letter-spacing:-.01em;overflow-wrap:anywhere}
+h2{margin:0;font-size:16px;font-weight:600}h3{margin:0;font-size:14px;font-weight:600}
+.sub{color:var(--mut);font-size:13px}
+.tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px}
+.tabs button{min-height:36px;padding:6px 14px;border:0;border-radius:7px;cursor:pointer;font:500 13px/1 var(--sans);background:transparent;color:var(--fg2)}
+.tabs button[aria-selected=true]{background:var(--acc);color:#14100A}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.kpi{border-radius:12px;padding:16px;gap:4px}
+.lbl{font:11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.big{font:600 26px var(--mono)}
+.row{display:flex;flex-wrap:wrap;gap:16px}.main{flex:999 1 640px;min-width:0}.side{flex:1 1 320px;min-width:0;display:flex;flex-direction:column;gap:16px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--mut)}.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:10px;height:10px;border-radius:2px;display:inline-block}
+.scroll{overflow-x:auto}
+.dag{display:flex;align-items:stretch;min-width:min-content}
+.lvl{display:flex;flex-direction:column;gap:10px;width:210px}
+.arrow{width:40px;display:flex;align-items:flex-start;justify-content:center;padding-top:86px;color:#4A5464}
+.node{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.node.pending{opacity:.7}
+.nid{font:600 13px var(--mono)}
+.badge{font:10px var(--mono);padding:2px 8px;border-radius:999px;white-space:nowrap}
+.meta{font:11px var(--mono);color:var(--mut)}
+.track{height:4px;background:var(--line);border-radius:2px;overflow:hidden}.track>div{height:4px}
+.between{display:flex;justify-content:space-between;gap:8px}
+.ev{display:flex;gap:10px;font-size:13px}.ev .t{font:11px var(--mono);color:var(--mut);flex:none;padding-top:2px}.ev .dot{margin-top:6px}
+.log{font:12px var(--mono);color:var(--fg2);display:flex;flex-direction:column;gap:4px;max-height:280px;overflow:auto}
+.trow{display:grid;grid-template-columns:56px minmax(0,1fr) 72px;gap:12px;align-items:center}
+.stack{display:flex;height:18px;border-radius:4px;overflow:hidden;background:var(--panel2)}
+.num{font:12px var(--mono);color:var(--fg2);text-align:right}
+.ins{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.cmp{display:grid;grid-template-columns:150px minmax(0,1fr) 90px;gap:12px;align-items:center;font-size:13px}
+.bar8{height:8px;border-radius:4px;background:var(--line);overflow:hidden}.bar8>div{height:8px}
+table{width:100%;min-width:720px;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--mut);font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:8px;border-bottom:1px solid var(--line)}
+td{padding:10px 8px;border-bottom:1px solid var(--line2);vertical-align:top}
+.empty{color:var(--mut);font-size:13px;padding:24px;text-align:center;border:1px dashed var(--line);border-radius:10px}
+footer{font-size:12px;color:var(--mut);display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between}
+code{font-family:var(--mono);font-size:12px;color:var(--fg2)}
+@media (prefers-reduced-motion:no-preference){.node.running{box-shadow:0 0 0 1px var(--running)}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script id="data" type="application/json">__DATA__</script>
+<script>
+(function(){
+var D = JSON.parse(document.getElementById('data').textContent);
+var S = D.state || {}, T = D.tokens, R = D.report, F = D.findings || [], W = D.watchdog || [];
+var COL = {validated:'#3FB950',running:'#4C8DFF',done:'#A371F7',pending:'#6B7585',failed:'#F85149',blocked:'#E3B341','done-unverified':'#D4A72C'};
+var CAT = [['system','sistema + CLAUDE.md','#5B6B82'],['card','card','#F5A524'],['interfaces','interfacce','#FFD08A'],
+  ['file_read_in_card','file in card','#3FB950'],['file_read_outside_card','file fuori card','#F85149'],
+  ['tool_output','output tool','#4C8DFF'],['agent_messages','messaggi agenti','#A371F7'],['other','altro','#3A4250']];
+var SEV = {high:'#F85149',med:'#E3B341',low:'#8B95A5'};
+var nodes = S.nodes || [], M = S.metrics || {};
+var tab = (location.hash || '#graph').slice(1);
+if (['graph','tokens','findings'].indexOf(tab) < 0) tab = 'graph';
+
+function esc(x){return String(x==null?'':x).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function k(n){if(n==null||n==='')return '—';n=+n;return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?Math.round(n/1e3)+'k':String(n)}
+function col(s){return COL[s]||'#6B7585'}
+function badge(s){var c=col(s);return '<span class="badge" style="color:'+c+';background:'+c+'22">'+esc(s)+'</span>'}
+function nodeTok(id){var n=T&&T.by_node&&T.by_node[id];return n?(n.total!=null?n.total:(n.input||0)+(n.output||0)):null}
+
+function levels(){
+  var byId={},lvl={};nodes.forEach(function(n){byId[n.id]=n});
+  function depth(id,seen){if(lvl[id]!=null)return lvl[id];if(seen[id])return 0;seen[id]=1;
+    var d=0;((byId[id]||{}).deps||[]).forEach(function(p){if(byId[p])d=Math.max(d,depth(p,seen)+1)});return lvl[id]=d}
+  nodes.forEach(function(n){depth(n.id,{})});
+  var out=[];nodes.forEach(function(n){var d=lvl[n.id];(out[d]=out[d]||[]).push(n)});return out.filter(Boolean);
+}
+
+function kpis(){
+  var cnt=function(s){return nodes.filter(function(n){return n.status===s}).length};
+  var run=nodes.filter(function(n){return n.status==='running'}).map(function(n){return n.id});
+  if(tab==='tokens'&&T){var t=T.totals||{};var inp=(t.input||0)+(t.cache_read||0)+(t.cache_creation||0);
+    var hit=inp?Math.round((t.cache_read||0)/inp*100)+'%':'—';var v=cnt('validated');
+    return [['token totali',k(t.total!=null?t.total:(t.input||0)+(t.output||0)),'tutti gli agenti'],['cache hit',hit,'cache read / input'],
+      ['per nodo validato',v?k((t.total||0)/v):'—',v+' nodi validati'],['sprecati',k(R&&R.wasted),'tentativi falliti, loop, letture fuori card'],
+      ['costo',T.cost!=null?T.cost:'[prezzi]',T.cost!=null?(T.currency||''):'imposta prices.json']]}
+  return [['nodi',cnt('validated')+'/'+nodes.length,'validati'],['in corso',String(run.length),run.join(' · ')||'—'],
+    ['subagenti',String(M.subagents||0),'lanciati'],['validator fail',String(M.validator_fails||0),'tentativi bocciati'],
+    ['watchdog',String((M.watchdog_warnings||0)+(M.watchdog_stops||0)),(M.watchdog_warnings||0)+' richiami · '+(M.watchdog_stops||0)+' stop']];
+}
+
+function graphView(){
+  var L=levels(),h='';
+  L.forEach(function(lv,i){
+    h+='<div style="display:flex;align-items:stretch"><div class="lvl"><div class="lbl">livello '+i+'</div>';
+    lv.forEach(function(n){
+      var c=col(n.status),b=(n.budget||{}).tool_calls,u=(n.usage||{}).tool_calls||0,pct=b?Math.min(100,Math.round(u/b*100)):0;
+      var mm=[n.model||n.agent,n.effort].filter(Boolean).join(' · ')+(n.attempts?' · tentativo '+(n.attempts+1):'');
+      h+='<div class="node '+esc(n.status)+'" style="'+(n.status==='running'?'border-color:'+c:'')+'">'+
+        '<div class="between"><span class="nid">'+esc(n.id)+'</span>'+badge(n.status)+'</div>'+
+        '<div style="font-size:13px;font-weight:500">'+esc(n.title)+'</div><div class="meta">'+esc(mm)+'</div>'+
+        (b?'<div class="track"><div style="width:'+pct+'%;background:'+(u/b>.8?'#E3B341':c)+'"></div></div>':'')+
+        '<div class="between meta"><span>'+(b?u+'/'+b+' call':esc(n.agent||''))+'</span><span>'+k(nodeTok(n.id))+'</span></div></div>';
+    });
+    h+='</div>'+(i<L.length-1?'<div class="arrow" aria-hidden="true"><svg width="24" height="12" viewBox="0 0 24 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M0 6h22M17 1l5 5-5 5"/></svg></div>':'')+'</div>';
+  });
+  var leg=['validated','running','done','pending','failed','blocked'].map(function(s){return '<span><i class="dot" style="background:'+col(s)+'"></i>'+s+'</span>'}).join('');
+  var crit=(S.critic||[]).slice(-1)[0],ps=S.plan_score;
+  var side='<div class="card"><h2>Critico</h2>'+(crit?'<div>'+badge(crit.verdict==='approve'?'validated':'blocked').replace(/>[^<]*</,'>'+esc(crit.at+' · '+crit.verdict+' · round '+crit.round)+'<')+'</div><p style="margin:0;color:var(--fg2);font-size:13px">'+esc(crit.resolution||(crit.points||[]).join(' · '))+'</p>':'<div class="sub">Nessuna revisione ancora.</div>')+
+    (ps?'<div class="meta">plan score: larghezza '+ps.width+' · percorso critico '+ps.critical_path+' · overlap '+ps.file_overlap+' · '+esc(ps.verdict)+'</div>':'')+'</div>';
+  side+='<div class="card"><h2>Watchdog</h2>'+(W.length?W.slice(-6).reverse().map(function(e){var c=e.level>=2?'#F85149':e.level===1?'#E3B341':'#4C8DFF';
+    return '<div class="ev"><span class="t">'+esc(e.t||'')+'</span><i class="dot" style="background:'+c+'"></i><span style="color:var(--fg2)">'+esc((e.node?e.node+': ':'')+(e.text||e.kind||''))+'</span></div>'}).join(''):'<div class="sub">Nessun evento.</div>')+'</div>';
+  side+='<div class="card"><h2>Log</h2><div class="log">'+(S.log||[]).slice(-30).reverse().map(function(l){return '<div>'+esc(l)+'</div>'}).join('')+'</div></div>';
+  return '<section class="row"><div class="card main"><div class="between" style="flex-wrap:wrap;align-items:center"><h2>Grafo</h2><div class="legend">'+leg+'</div></div>'+
+    (nodes.length?'<div class="scroll"><div class="dag">'+h+'</div></div>':'<div class="empty">Nessun nodo ancora.</div>')+'</div><div class="side">'+side+'</div></section>';
+}
+
+function tokensView(){
+  if(!T)return '<section class="card"><h2>Token</h2><div class="empty">Nessun dato sui token: arriva con la v0.4 (<code>.graph/tokens.json</code>, comando <code>/graph-tokens</code>).</div></section>';
+  var rows=[],bn=T.by_node||{};Object.keys(bn).forEach(function(id){rows.push([id,bn[id]])});
+  var leg=CAT.map(function(c){return '<span><i class="sw" style="background:'+c[2]+'"></i>'+c[1]+'</span>'}).join('');
+  var bars=rows.map(function(r){var cats=r[1].categories||{},tot=0;CAT.forEach(function(c){tot+=cats[c[0]]||0});
+    var segs=CAT.map(function(c){var v=cats[c[0]]||0;return v?'<div title="'+esc(c[1]+': '+k(v))+'" style="width:'+(v/tot*100)+'%;background:'+c[2]+'"></div>':''}).join('');
+    var tt=r[1].total!=null?r[1].total:tot;
+    return '<div class="trow"><span class="nid" style="font-size:12px">'+esc(r[0])+'</span><div class="stack" role="img" aria-label="'+esc(r[0]+': '+k(tt)+' token')+'">'+segs+'</div><span class="num">'+k(tt)+'</span></div>'}).join('');
+  var cmp='';var C=R&&R.compare;
+  if(C&&C.length){cmp='<div style="display:flex;flex-direction:column;gap:10px;padding-top:8px;border-top:1px solid var(--line)"><h3>Kit vs baseline</h3>'+
+    C.map(function(m){var mx=Math.max(m.kit,m.baseline)||1;return '<div class="cmp"><span style="color:var(--fg2)">'+esc(m.label)+'</span><div style="display:flex;flex-direction:column;gap:4px"><div class="bar8"><div style="width:'+(m.kit/mx*100)+'%;background:#F5A524"></div></div><div class="bar8"><div style="width:'+(m.baseline/mx*100)+'%;background:#5B6B82"></div></div></div><span class="num" style="color:'+(m.better?'#3FB950':'#F85149')+'">'+esc(m.delta||'')+'</span></div>'}).join('')+
+    '<div class="legend"><span><i class="sw" style="background:#F5A524"></i>graph-kit</span><span><i class="sw" style="background:#5B6B82"></i>baseline</span></div></div>'}
+  var ins=(R&&R.insights||[]).map(function(i){var good=(i.saving_estimate||0)<0||i.good;
+    return '<div class="ins"><div class="between"><span class="lbl" style="font-size:10px">'+esc(i.kind)+'</span><span style="font:600 13px var(--mono);color:'+(good?'#3FB950':'#F85149')+'">'+esc(i.amount||(i.tokens!=null?(good?'−':'+')+k(Math.abs(i.saving_estimate||i.tokens)):''))+'</span></div><div style="font-size:13px;font-weight:500">'+esc(i.title||i.suggestion)+'</div><div class="sub" style="font-size:12px">'+esc(i.title?i.suggestion:(i.node||''))+'</div></div>'}).join('');
+  return '<section class="row"><div class="card main"><div class="between" style="flex-wrap:wrap;align-items:center"><h2>Dove va il contesto, per nodo</h2><div class="legend">'+leg+'</div></div>'+
+    (bars||'<div class="empty">Nessun nodo con token registrati.</div>')+cmp+'</div><div class="card side" style="gap:12px"><h2>Dove si risparmia, dove si spreca</h2>'+(ins||'<div class="sub">Gli insights arrivano con <code>token-report.json</code>.</div>')+'</div></section>';
+}
+
+function findingsView(){
+  if(!F.length)return '<section class="card"><h2>Findings</h2><div class="empty">Nessun finding registrato.</div></section>';
+  var rows=F.map(function(f){var c=SEV[f.severity]||'#8B95A5';
+    return '<tr><td><code>'+esc(f.id)+'</code></td><td><code>'+esc(f.from)+'</code></td><td><span class="badge" style="color:'+c+';background:'+c+'22">'+esc(f.severity)+'</span></td><td>'+esc(f.what)+(f.file?'<div class="meta">'+esc(f.file)+'</div>':'')+'</td><td style="color:var(--fg2)">'+esc(f.placement||'—')+'</td><td class="meta">'+esc(f.status||'open')+'</td></tr>'}).join('');
+  return '<section class="card"><h2>Findings</h2><div class="scroll"><table><thead><tr><th>id</th><th>da</th><th>sev.</th><th>cosa</th><th>posizione proposta</th><th>stato</th></tr></thead><tbody>'+rows+'</tbody></table></div></section>';
+}
+
+function render(){
+  var st=S.status||'?',sc=st==='running'?'#4C8DFF':st==='done'?'#3FB950':st==='failed'?'#F85149':'#6B7585';
+  var tabs=[['graph','Grafo'],['tokens','Token'],['findings','Findings'+(F.length?' · '+F.length:'')]];
+  var h='<header><div style="min-width:0"><div class="eyebrow"><span style="display:inline-flex;align-items:center;gap:6px;color:'+sc+'"><i class="dot" style="background:'+sc+'"></i>'+esc(st)+'</span>'+
+    '<span>·</span><span>modalità '+esc(S.mode||'?')+'</span>'+(S.started?'<span>·</span><span>iniziato '+esc(String(S.started).slice(11,16)||S.started)+'</span>':'')+'<span>·</span><span>aggiornato '+esc(D.updated)+'</span></div>'+
+    '<h1>'+esc(S.goal||'graph-kit')+'</h1><div class="sub">'+esc(S.mode_reason||'')+'</div></div>'+
+    '<div class="tabs" role="tablist">'+tabs.map(function(t){return '<button type="button" role="tab" data-tab="'+t[0]+'" aria-selected="'+(tab===t[0])+'">'+t[1]+'</button>'}).join('')+'</div></header>';
+  h+='<section class="kpis" aria-label="Indicatori">'+kpis().map(function(x){return '<div class="card kpi"><div class="lbl">'+x[0]+'</div><div class="big">'+esc(x[1])+'</div><div class="sub" style="font-size:12px">'+esc(x[2])+'</div></div>'}).join('')+'</section>';
+  h+=tab==='tokens'?tokensView():tab==='findings'?findingsView():graphView();
+  h+='<footer><span><code>.graph/state.json</code>'+(T?' + <code>tokens.json</code>':'')+'</span><span>'+(D.refresh>0&&S.status==='running'?'si aggiorna ogni '+D.refresh+' s':'snapshot')+'</span></footer>';
+  document.getElementById('app').innerHTML=h;
+  Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'),function(b){b.onclick=function(){tab=b.getAttribute('data-tab');history.replaceState(null,'','#'+tab);render()}});
+}
+render();
+if(D.refresh>0&&S.status==='running')setTimeout(function(){location.reload()},D.refresh*1000);
+})();
+</script>
+</body>
+</html>

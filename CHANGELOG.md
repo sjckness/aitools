@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 — 2026-10-26
+- Nuovo Run Viewer (`.graph/view.html`): una pagina con viste Grafo, Token e Findings, tema scuro, leggibile da telefono, nessuna libreria esterna (niente più Mermaid).
+- Il viewer legge in modo opzionale `tokens.json`, `token-report.json`, `findings.jsonl` e `watchdog.jsonl`; con uno stato v0.2 mostra solo il grafo.
+- Scrittura atomica della pagina; si ricarica da sola solo mentre il run è in corso.
+- Demo in `examples/demo/` e README con screenshot.
+
 ## 0.2.0 — 2026-10-26
 - graph-kit: la logica è ora una skill (`graph-orchestration`) che Claude attiva da solo per task grandi; `/run-graph` resta come scorciatoia.
 - graph-kit: override dell'utente su modalità e agenti (`--mode M`, "usa solo implementer e validator").
