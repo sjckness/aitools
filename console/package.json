@@ -1,6 +1,6 @@
 {
   "name": "sjck",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "sjck console: a local web app to start, watch and steer sjck agent-graph runs across your projects.",
   "license": "MIT",
   "author": "Andreas Steffens",
@@ -18,7 +18,7 @@
   },
   "scripts": {
     "start": "node bin/sjck.js serve",
-    "test": "node --test test/console.test.js",
+    "test": "node --test test/console.test.js test/setup.test.js",
     "prepack": "node scripts/sync-viewer.js"
   },
   "repository": {

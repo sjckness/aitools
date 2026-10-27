@@ -7,3 +7,4 @@ console/node_modules/
 vscode/lib/
 vscode/node_modules/
 vscode/*.vsix
+console/*.tgz

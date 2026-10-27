@@ -1,5 +1,11 @@
 # Changelog
 
+## console 0.3.0 — 2026-10-27 · installazione senza clone
+- Installer in un comando: `get.sh` (Linux/macOS) e `get.ps1` (Windows) controllano i requisiti, installano la console dal pacchetto della release, i plugin e l'estensione.
+- Console: nuovi comandi `sjck setup`, `sjck doctor`, `sjck vscode [--editor]`, `sjck update` (`src/setup.js`, 3 test nuovi).
+- Release unica (`.github/workflows/release.yml`, tag `v*` o `vscode-v*`) con asset a nome fisso `sjck-console.tgz` e `sjck.vsix`, scaricabili da `releases/latest/download/`. Prima la console funzionava solo da una copia locale perché `ui/viewer.html` è generato.
+- README: nuova guida di installazione (one-liner, passi manuali, aggiornamento, opzioni, disinstallazione, troubleshooting).
+
 ## vscode 0.1.4 — 2026-10-26 · Mission Control
 - Estensione VS Code: nuovo pannello Mission Control (grafo animato live con pan/zoom, anello di avanzamento, statistiche, drawer per nodo, inbox interattiva, plan score, timeline) aggiornato via `postMessage`; chat del planner ridisegnata.
 

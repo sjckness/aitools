@@ -38,7 +38,7 @@
     "viewsWelcome": [
       {
         "view": "sjck.graph",
-        "contents": "No sjck run in this workspace yet.\n[Open Mission Control](command:sjck.openDashboard)\n[Plan a task](command:sjck.plan)\n[Run a task](command:sjck.run)\nRequires Claude Code with the sjck-graph plugin ([install](https://github.com/sjckness/sjckAI-tools#install))."
+        "contents": "No sjck run in this workspace yet.\n[Open Mission Control](command:sjck.openDashboard)\n[Plan a task](command:sjck.plan)\n[Run a task](command:sjck.run)\nRequires Claude Code with the sjck-graph plugin ([install](https://github.com/sjckness/sjckAI-tools#installation))."
       },
       {
         "view": "sjck.inbox",

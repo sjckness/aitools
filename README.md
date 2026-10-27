@@ -50,20 +50,68 @@ carries mistakes forward. sjck does the opposite:
 
 ## Installation
 
+**One command, no clone.** It checks the requirements, installs the `sjck`
+command (the console), adds both Claude Code plugins and — if VS Code is on your
+`PATH` — installs the extension.
+
+**Linux / macOS**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sjckness/sjckAI-tools/main/get.sh | bash
+```
+
+**Windows** (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/sjckness/sjckAI-tools/main/get.ps1 | iex
+```
+
+Then check it:
+
+```bash
+sjck doctor
+```
+
+```
+  ✓ Node.js        v22.11.0
+  ✓ Claude Code    2.1.3 (Claude Code)
+  ✓ Python ≥ 3.9   Python 3.12.4
+  ✓ git            git version 2.43.0
+  ✓ VS Code CLI    code 1.95.3
+  ✓ plugin sjck-graph
+  ✓ plugin sjck-onboard
+```
+
+That's it — jump to [Quick start](#quick-start).
+
 ### Requirements
 
-| | Version | Needed for |
-|---|---|---|
-| [Claude Code](https://code.claude.com) | recent | everything |
-| Python | ≥ 3.9 (standard library only) | the plugin's scripts |
-| Node.js | ≥ 20 | console and VS Code extension (you already have it if Claude Code was installed with npm) |
-| git | any | cloning, diffs in VS Code |
+| | Version | Needed for | Get it |
+|---|---|---|---|
+| Node.js | ≥ 20 | the installer, console, extension | [nodejs.org](https://nodejs.org) · `winget install OpenJS.NodeJS.LTS` · `brew install node` |
+| [Claude Code](https://code.claude.com) | recent, logged in | everything | the installer adds it if missing; run `claude` once to log in |
+| Python | ≥ 3.9 (standard library only) | the plugin's scripts | [python.org](https://www.python.org/downloads) (usually preinstalled on Linux/macOS) |
+| VS Code / Cursor | optional | the extension | needs the `code` command on `PATH` (*Shell Command: Install 'code' command in PATH*) |
 
-Works on Linux, macOS and Windows.
+### What the installer does, step by step
 
-### 1. Plugins (required)
+If you prefer to do it by hand — or a step failed — these are the same steps.
 
-Inside Claude Code, **one line at a time**:
+**1. Console** (the `sjck` command)
+
+```bash
+npm i -g https://github.com/sjckness/sjckAI-tools/releases/latest/download/sjck-console.tgz
+```
+
+**2. Claude Code plugins** — either from your shell:
+
+```bash
+claude plugin marketplace add sjckness/sjckAI-tools
+claude plugin install sjck-graph@sjck
+claude plugin install sjck-onboard@sjck
+```
+
+or inside Claude Code, **one line at a time**:
 
 ```
 /plugin marketplace add sjckness/sjckAI-tools
@@ -71,13 +119,35 @@ Inside Claude Code, **one line at a time**:
 /plugin install sjck-onboard@sjck
 ```
 
-Check: type `/` and you should see `/sjck-run`, `/sjck-plan`, `/sjck-change`…
+Type `/` and you should see `/sjck-run`, `/sjck-plan`, `/sjck-change`…
 (possibly prefixed, e.g. `/sjck-graph:sjck-run`).
 
-Update later with `/plugin marketplace update sjck`.
+**3. VS Code extension**
+
+```bash
+sjck vscode                    # or: sjck vscode --editor cursor
+```
+
+or download [`sjck.vsix`](https://github.com/sjckness/sjckAI-tools/releases/latest/download/sjck.vsix)
+and use *Extensions → ⋯ → Install from VSIX…*. Works in Cursor and VSCodium too.
+
+### Update
+
+```bash
+sjck update        # console + plugins + extension, to the latest release
+```
+
+### Options
+
+| | |
+|---|---|
+| Skip parts | `curl … get.sh \| bash -s -- --no-vscode` (also `--no-plugins`); on Windows `$env:SJCK_SETUP_ARGS="--no-vscode"` before `irm … \| iex` |
+| Pin a version | `SJCK_REF=v0.4.0` (Windows: `$env:SJCK_REF="v0.4.0"`) |
+| Only the plugins | skip the console entirely and use step 2 |
+| Uninstall | `npm rm -g sjck`, `claude plugin uninstall sjck-graph@sjck` (and `sjck-onboard@sjck`), remove the extension from VS Code; settings live in `~/.sjck/` |
 
 <details>
-<summary>Without the plugin system</summary>
+<summary>Without the plugin system (copy files into <code>.claude/</code>)</summary>
 
 ```bash
 # all projects (~/.claude)
@@ -90,35 +160,14 @@ Copies agents, commands, skills and scripts. Without the plugin there are no
 hooks: no watchdog and no live viewer updates (use `/sjck-view`).
 </details>
 
-### 2. Console (optional)
-
-```bash
-git clone https://github.com/sjckness/sjckAI-tools.git
-npm i -g ./sjckAI-tools/console
-```
-
-Then, in each repo you want to see: `sjck add`. Start it with `sjck serve`
-(opens `http://localhost:7777`).
-
-### 3. VS Code extension (optional)
-
-Download `sjck-<version>.vsix` from the
-[latest release](https://github.com/sjckness/sjckAI-tools/releases/latest), then:
-
-```bash
-code --install-extension sjck-0.1.4.vsix
-```
-
-or *Extensions → ⋯ → Install from VSIX…*. Works in Cursor and VSCodium too.
-
 <details>
-<summary>Build it yourself</summary>
+<summary>From source (for development)</summary>
 
 ```bash
-cd sjckAI-tools/vscode
-npm i
-npx @vscode/vsce package --no-dependencies
-code --install-extension sjck-*.vsix
+git clone https://github.com/sjckness/sjckAI-tools.git && cd sjckAI-tools
+(cd console && npm pack && npm i -g ./sjck-*.tgz)      # pack first: it bundles the Run Viewer
+(cd vscode && npm ci && npm run sync && npx @vscode/vsce package --no-dependencies && code --install-extension sjck-*.vsix)
+claude plugin marketplace add ./ && claude plugin install sjck-graph@sjck
 ```
 </details>
 
@@ -310,6 +359,10 @@ hand-written lines and actually runs the build/test commands it documents.
 
 | Problem | Fix |
 |---|---|
+| Anything odd after installing | `sjck doctor` lists what's missing and how to fix it |
+| `npm i -g` fails with EACCES (Linux/macOS) | use a Node version manager (nvm, fnm), or `npm config set prefix ~/.local` and add `~/.local/bin` to `PATH` |
+| `sjck: command not found` after installing | open a new terminal; on Windows add the folder printed by `npm prefix -g` to `PATH` |
+| `sjck vscode` says `code` not found | in VS Code: *Shell Command: Install 'code' command in PATH*, or `--editor cursor` |
 | `/sjck-…` commands don't show up | `/plugin` → check that `sjck-graph@sjck` is enabled; restart Claude Code |
 | `… is not a valid GitHub owner/repo shorthand` | paste the `/plugin` lines one at a time |
 | Viewer doesn't update by itself | hooks need the plugin install (not `install.sh`); use `/sjck-view` |

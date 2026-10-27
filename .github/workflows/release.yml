@@ -1,0 +1,50 @@
+name: Release
+
+# Push a tag like `v0.4.0` (or `vscode-v0.1.5`) to build the console package and the
+# VS Code extension and attach both to a GitHub release. Stable asset names
+# (sjck-console.tgz, sjck.vsix) make `releases/latest/download/...` links work
+# for the installers and for `sjck update`.
+on:
+  push:
+    tags: ['v*', 'vscode-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      - name: Plugin tests
+        run: python -m unittest discover -s sjck-graph/tests
+      - name: Console package
+        working-directory: console
+        run: |
+          npm test
+          npm pack
+          cp sjck-*.tgz ../sjck-console.tgz
+      - name: VS Code extension
+        working-directory: vscode
+        run: |
+          npm ci
+          npm run sync
+          npm test
+          npx tsc -p jsconfig.json
+          npx --yes @vscode/vsce package --no-dependencies
+          cp sjck-*.vsix ../sjck.vsix
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            sjck-console.tgz
+            sjck.vsix
+            vscode/sjck-*.vsix
+          generate_release_notes: true

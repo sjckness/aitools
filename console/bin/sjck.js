@@ -7,10 +7,15 @@ import { createInterface } from 'node:readline/promises';
 import * as config from '../src/config.js';
 import { summary, WORKDIR } from '../src/data.js';
 import { createConsole } from '../src/server.js';
+import * as setup from '../src/setup.js';
 
 const HELP = `sjck console
 
 Usage:
+  sjck setup [--no-plugins] [--no-vscode]                 check requirements, install plugins and VS Code extension
+  sjck doctor                                             check that everything is installed
+  sjck vscode [--editor code|cursor|codium]               install or update the VS Code extension
+  sjck update                                             update console, plugins and extension
   sjck serve [--port 7777] [--host 127.0.0.1] [--no-open]   start the console
   sjck add [path] [--name NAME]                           register a project (default: current folder)
   sjck remove <path|id>                                   unregister a project
@@ -45,7 +50,18 @@ async function maybeRegisterCwd() {
 
 async function main() {
   const [cmd = 'help', ...args] = process.argv.slice(2);
-  if (cmd === 'serve') {
+  if (cmd === 'setup') {
+    process.exitCode = (await setup.setup(args)) ? 0 : 1;
+  } else if (cmd === 'doctor') {
+    process.exitCode = setup.doctor() ? 0 : 1;
+  } else if (cmd === 'vscode') {
+    process.exitCode = (await setup.installVscode(flag(args, '--editor', 'code'))) ? 0 : 1;
+  } else if (cmd === 'update') {
+    console.log('→ console');
+    const r = setup.run('npm', ['i', '-g', setup.assetUrl('sjck-console.tgz')]);
+    if (!r.ok) console.log('  ✗ npm install failed; see the output above');
+    process.exitCode = (await setup.setup(args)) && r.ok ? 0 : 1;
+  } else if (cmd === 'serve') {
     await maybeRegisterCwd();
     const host = flag(args, '--host', '127.0.0.1');
     if (!['127.0.0.1', 'localhost', '::1'].includes(host)) {
