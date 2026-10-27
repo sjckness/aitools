@@ -20,6 +20,12 @@
 ## Prossimo — live change requests
 - [x] `docs/specs/change-requests.md`: `/sjck-change`, CR in `.sjck/changes/`, applicati live da `inbox.py`
 
+## Prossimo — output chat
+- [ ] Accanto alla chat del planner (che *cambia* il piano), una chat in sola lettura che *spiega* cosa è stato fatto: "cosa ha cambiato T03?", "perché il validator ha bocciato T02?", "chi ha toccato graph_view.py?"
+- [ ] Risponde da `.sjck/` (card, out JSON, `.val.json`, REVIEW.json, findings, watchdog, change request applicati) e dai diff dei nodi, con link a file:riga e al nodo nel grafo
+- [ ] Disponibile in console, VS Code (accanto al planner) e come `/sjck-explain` in Claude Code; a fine run genera un riepilogo spiegato
+- [ ] Tool limitati a lettura: non scrive né lo stato né change request
+
 ## v0.4 — token analytics
 - [ ] Spec: `docs/specs/v0.4-token-analytics.md` (consumo reale dai transcript, costo, dove si risparmia, baseline senza kit, token visualizer)
 

@@ -106,7 +106,7 @@ Download `sjck-<version>.vsix` from the
 [latest release](https://github.com/sjckness/sjckAI-tools/releases/latest), then:
 
 ```bash
-code --install-extension sjck-0.1.1.vsix
+code --install-extension sjck-0.1.4.vsix
 ```
 
 or *Extensions → ⋯ → Install from VSIX…*. Works in Cursor and VSCodium too.
@@ -271,15 +271,22 @@ and write change requests.
 
 ## VS Code extension
 
-Native views over the same `.sjck/` folder, no console needed:
+Native views over the same `.sjck/` folder, no console needed.
 
+<img src="docs/img/vscode-mission-control.png" alt="sjck Mission Control in VS Code: progress ring, KPIs, live agent graph, inbox, plan score and activity timeline" width="100%">
+
+- **Mission Control** (new in 0.1.4) — a full panel with the live, animated
+  graph (pan/zoom), a progress ring, KPIs (tokens, tool calls, live agents,
+  what's waiting for you, validator fails), a drawer per node with card, files
+  and diff, the inbox with one-click decisions, plan score and critic verdict,
+  and an activity timeline. Updates arrive via `postMessage`, so nothing reloads.
 - **Graph** view in the activity bar — levels and nodes with live status, model
   and effort, tool calls against budget, tokens. Click a node to open its card;
   open the diff of what a finished node changed.
 - **Status bar** — `sjck 4/9 · T02 T05 · 2 waiting`.
 - **Explorer badges** — `●` files a running node is working on, `!` files of a
   failed or blocked node, `✓` files changed by a validated node.
-- **Run Viewer** in an editor tab, **planner chat** in the sidebar, **Inbox**
+- **Run Viewer** in an editor tab, a restyled **planner chat** in the sidebar, **Inbox**
   with one-click approvals, **Plan / Run / Stop** from the view title.
 
 Details and settings: [`vscode/README.md`](vscode/README.md).
@@ -319,8 +326,9 @@ hand-written lines and actually runs the build/test commands it documents.
 |---|---|
 | ✅ 0.3 | watchdog, findings, critic, per-node model/effort, eval harness — [spec](docs/specs/v0.3.md) |
 | ✅ console + VS Code | dashboard, planner chat, approvals, live change requests — [spec](docs/specs/console.md), [spec](docs/specs/change-requests.md) |
-| **next** | token analytics from real transcripts, no-kit baseline — [spec](docs/specs/v0.4-token-analytics.md) |
-| then | memory across runs (`lessons.md`), ROS 2 validator pack, Marketplace release |
+| **next** | **output chat**: ask what was done and why — per node, per file, per decision — answered from cards, diffs, validator reports and findings |
+| then | token analytics from real transcripts, no-kit baseline — [spec](docs/specs/v0.4-token-analytics.md) |
+| later | memory across runs (`lessons.md`), ROS 2 validator pack, Marketplace release |
 | later | job runner for heavy workloads, multi-machine workers, agent optimizer |
 
 Specs are executed with the kit itself:
