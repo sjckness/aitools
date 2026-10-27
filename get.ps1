@@ -26,8 +26,21 @@ if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
 }
 
 Write-Host "-> sjck console ($ref)"
-npm i -g $url
-if ($LASTEXITCODE -ne 0) { Fail 'console install failed' }
+npm i -g $url 2>$null
+if ($LASTEXITCODE -ne 0) {
+  Write-Host '   no release package found, building from source'
+  $src = if ($ref -eq 'latest') { 'main' } else { $ref }
+  $tmp = Join-Path ([IO.Path]::GetTempPath()) ("sjck-" + [guid]::NewGuid())
+  New-Item -ItemType Directory $tmp | Out-Null
+  Invoke-WebRequest "https://codeload.github.com/$repo/zip/$src" -OutFile "$tmp\src.zip"
+  Expand-Archive "$tmp\src.zip" $tmp
+  $root = Get-ChildItem $tmp -Directory | Select-Object -First 1
+  Push-Location "$($root.FullName)\console"; npm pack --silent | Out-Null; Pop-Location
+  $pkg = Get-ChildItem "$($root.FullName)\console\sjck-*.tgz" | Select-Object -First 1
+  npm i -g $pkg.FullName
+  if ($LASTEXITCODE -ne 0) { Fail 'console install failed' }
+  Remove-Item -Recurse -Force $tmp
+}
 
 # npm's global folder may not be on PATH in this session yet
 $env:Path = "$(npm prefix -g);$env:Path"

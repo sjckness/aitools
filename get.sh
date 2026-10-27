@@ -24,12 +24,27 @@ if ! command -v claude >/dev/null; then
   echo "  run \`claude\` once to log in, then run this installer again if plugins fail"
 fi
 
+from_source() {  # no release asset yet: build the package from the repo snapshot (bundles the Run Viewer)
+  local ref="main"; [[ "$REF" != latest ]] && ref="$REF"
+  SJCK_TMP="$(mktemp -d)"; trap 'rm -rf "$SJCK_TMP"' EXIT; local tmp="$SJCK_TMP"
+  curl -fsSL "https://codeload.github.com/$REPO/tar.gz/$ref" | tar -xz -C "$tmp"
+  local root; root="$(find "$tmp" -mindepth 1 -maxdepth 1 -type d | head -1)"
+  (cd "$root/console" && npm pack --silent >/dev/null) || return 1
+  npm i -g "$root"/console/sjck-*.tgz
+}
+
 say "→ sjck console ($REF)"
-if ! npm i -g "$URL"; then
-  echo "  npm could not write to its global folder. Use a Node version manager (nvm, fnm)"
-  echo "  or set a user prefix:  npm config set prefix ~/.local  (and add ~/.local/bin to PATH)"
+log="$(mktemp)"
+if npm i -g "$URL" 2>"$log"; then :
+elif grep -q 'E404' "$log"; then
+  echo "  no release package found, building from source"
+  from_source || fail "console install failed"
+else
+  cat "$log" >&2
+  grep -q 'EACCES' "$log" && echo "  npm can't write its global folder: use nvm/fnm, or  npm config set prefix ~/.local  (add ~/.local/bin to PATH)"
   fail "console install failed"
 fi
+rm -f "$log"
 
 command -v sjck >/dev/null || fail "installed, but \`sjck\` is not on PATH: add \"$(npm prefix -g)/bin\" to PATH"
 sjck setup "$@"
