@@ -135,6 +135,7 @@ and use *Extensions → ⋯ → Install from VSIX…*. Works in Cursor and VSCod
 
 ```bash
 sjck update        # console + plugins + extension, to the latest release
+# or, from inside Claude Code (no console needed):  /sjck-graph:sjck-update   (add `check` to only compare)
 ```
 
 ### Options
@@ -208,6 +209,7 @@ the plan:
 | `/sjck-change [request]` | Discuss changes to a planned or running graph; writes a change request |
 | `/sjck-status` | Current state, without running anything |
 | `/sjck-view` | Opens the Run Viewer |
+| `/sjck-graph:sjck-update` | Updates plugins, VS Code extension and console to the latest GitHub release (`check` = compare only) |
 | `/sjck-eval [--dry-run]` | Eval harness to compare kit versions |
 | `/sjck-onboard [focus]` | Writes `CLAUDE.md` and `.claude/map/` |
 

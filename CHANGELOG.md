@@ -1,5 +1,10 @@
 # Changelog
 
+## sjck-graph 0.4.0 — 2026-10-28 · `/sjck-graph:sjck-update`
+- Nuovo comando `/sjck-graph:sjck-update` (`scripts/update.py`, solo libreria standard): confronta l'installato con l'ultima release GitHub e aggiorna plugin (marketplace `sjck`), estensione VS Code (`sjck.vsix`, solo se indietro; code/cursor/codium) e console (`sjck-console.tgz`, solo se già installata). `check` per il solo confronto, `--only`, `--editor`. Ricorda di riavviare Claude Code / ricaricare VS Code.
+- Versione del plugin portata a 0.4.0: era ferma a 0.3.2 nonostante planner interattivo, token reali e costo in euro, e con la stessa versione `claude plugin update` poteva non scaricare niente.
+- 5 test nuovi (`claude` e `code` finti nel PATH).
+
 ## vscode 0.1.5 — 2026-10-28 · planning interattivo e token reali
 - `/sjck-plan` è una conversazione: ogni scelta che cambia il piano passa da AskUserQuestion (domande iniziali se la task è vaga, scelta dell'alternativa, conferma delle ottimizzazioni che toccano lo scope, approvazione finale). In `claude -p` resta senza domande, con default dichiarati in `assumptions`.
 - Handoff all'estensione: dopo l'approvazione il planner scrive le card e per ultimo `state.json` (`status: "planned"`, nuovo campo `planned_at`). L'estensione lo vede col file watcher, apre la vista sjck e notifica "plan ready" con nodi, modalità e stima token → *Approve and run*.
