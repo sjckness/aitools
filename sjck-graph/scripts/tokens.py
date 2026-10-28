@@ -18,10 +18,20 @@ Privacy: legge solo i campi `usage`, `model`, `id` e `timestamp`; non copia
 mai testo dei messaggi o contenuto dei file.
 
 Il formato dei transcript non è un contratto stabile: righe malformate o campi
-sconosciuti vengono ignorati. Le categorie di contesto (card, interfacce,
-file nella card / fuori card, output dei tool, messaggi dei subagenti, system)
-sono STIMATE: l'input reale di ogni turno viene diviso in proporzione al
-contenuto visibile nel contesto (caratteri/4); `system` è il resto.
+sconosciuti vengono ignorati. Verificato su transcript reali di Claude Code 2.x
+contro l'evento `cost-state` (totali scritti da Claude Code stesso):
+  - input/cache esatti; output entro ~±6%. Nei transcript dei subagenti la riga
+    finale dello streaming spesso manca (resta la usage di message_start): in
+    quel caso l'output si ricostruisce dal contenuto, thinking compreso
+    (stimato dalla lunghezza della `signature`, perché il testo è oscurato);
+  - gli eventi `api-request-blob` sono copie dei messaggi e si saltano;
+  - `cost-state` dà il costo reale in USD, ripartito sui nodi.
+Le categorie di contesto (card, interfacce, file nella card / fuori card,
+output dei tool, messaggi dei subagenti, thinking, reminder, system) sono
+STIMATE: il contesto si ricostruisce blocco per blocco, il fattore caratteri→
+token si calibra su ogni transcript (regressione sull'input reale dei turni,
+tipicamente 2,3-2,5 caratteri per token) e `system` è il resto, che risulta
+vicino alla dimensione misurata di system prompt e tool.
 Scrive anche .sjck/token-report.json con gli insight (dove si risparmia,
 dove si spreca), conservando un eventuale confronto con la baseline.
 
@@ -75,8 +85,19 @@ def write_json(path, data):
 
 
 CATS = ("system", "card", "interfaces", "file_read_in_card", "file_read_outside_card",
-        "tool_output", "agent_messages", "other")
+        "tool_output", "agent_messages", "thinking", "reminders", "other")
 AGENT_TOOLS = ("Task", "Agent")
+
+# Il thinking viene salvato oscurato: resta solo la `signature`, la cui
+# lunghezza è proporzionale ai token reali. Calibrato su transcript veri
+# (Claude Code 2.x, opus): errore ~20% sul singolo messaggio, ~2% sul totale.
+THINK_TOKENS_PER_SIG_CHAR = 0.322
+
+# Eventi di servizio di Claude Code che non sono contesto della conversazione.
+# `api-request-blob` contiene COPIE dei messaggi: contarle raddoppierebbe tutto.
+SKIP_EVENTS = ("api-request", "api-request-blob", "api-request-shape", "queue-operation",
+               "file-history-snapshot", "file-history-delta", "atis-latch", "last-prompt",
+               "ai-title", "custom-title")
 
 
 def _est(v):
@@ -128,6 +149,28 @@ def classify(tool, inp, card_files, root=""):
     return "tool_output"
 
 
+DEFAULT_FACTOR = 1.5   # mediana misurata; usata quando i turni sono troppo pochi
+
+
+def calibrate(pts):
+    """Fattore b di input_reale = a + b * stimato (minimi quadrati), limitato a [1, 2.5].
+
+    Con meno di 4 turni, o una regressione degenere, usa DEFAULT_FACTOR.
+    """
+    n = len(pts)
+    if n < 4:
+        return DEFAULT_FACTOR
+    mx = sum(x for x, _ in pts) / n
+    my = sum(y for _, y in pts) / n
+    sxx = sum((x - mx) ** 2 for x, _ in pts)
+    if sxx <= 0:
+        return DEFAULT_FACTOR
+    b = sum((x - mx) * (y - my) for x, y in pts) / sxx
+    if my - b * mx < 0:   # intercetta negativa: il fit non è credibile
+        return DEFAULT_FACTOR
+    return min(2.5, max(1.0, b))
+
+
 def parse_transcript(path, card_files=(), root=""):
     """Somma la usage dei messaggi assistant di un transcript e la divide per categoria.
 
@@ -148,6 +191,9 @@ def parse_transcript(path, card_files=(), root=""):
     ctx = {c: 0 for c in CATS}
     tools = {}         # tool_use id -> (nome, input)
     heavy = []
+    seen_blocks = {}   # message id -> blocchi già contati (lo streaming ripete le righe)
+    vis = {}           # message id -> output visibile stimato (testo, tool_use, thinking)
+    cost_state = None
     first = last = None
     try:
         f = open(path, encoding="utf-8", errors="replace")
@@ -164,7 +210,17 @@ def parse_transcript(path, card_files=(), root=""):
                 continue
             if not isinstance(evt, dict):
                 continue
-            if evt.get("isCompactSummary") or (evt.get("type") == "system" and evt.get("subtype") == "compact_boundary"):
+            etype = evt.get("type")
+            if etype == "cost-state":
+                cost_state = evt  # l'ultimo vince: totali della sessione, subagenti inclusi
+                continue
+            if etype in SKIP_EVENTS:
+                continue
+            if etype == "attachment":
+                # system-reminder e simili: entrano nel contesto come testo renderizzato.
+                ctx["reminders"] += _est([r for r in (evt.get("rendered") or []) if isinstance(r, dict)])
+                continue
+            if evt.get("isCompactSummary") or (etype == "system" and evt.get("subtype") == "compact_boundary"):
                 ctx = {c: 0 for c in CATS}
             msg = evt.get("message")
             if not isinstance(msg, dict):
@@ -198,16 +254,37 @@ def parse_transcript(path, card_files=(), root=""):
                     snap[mid] = dict(ctx)
                 by_msg[mid] = {
                     "model": msg.get("model") if isinstance(msg.get("model"), str) else "unknown",
+                    # Senza stop_reason la riga è un pezzo dello streaming: la sua
+                    # usage è quella di message_start (output quasi zero).
+                    "final": bool(msg.get("stop_reason")),
                     **{k: _int(usage.get(USAGE_FIELDS[k])) for k in KEYS},
                 }
-            # La risposta resta nel contesto dei turni successivi.
+            # La risposta resta nel contesto dei turni successivi. Ogni blocco
+            # si conta una volta sola anche se la riga viene ripetuta.
             if isinstance(content, list):
-                for b in content:
-                    if isinstance(b, dict) and b.get("type") == "tool_use":
+                done = seen_blocks.setdefault(mid, set())
+                for i, b in enumerate(content):
+                    if not isinstance(b, dict):
+                        continue
+                    key = b.get("id") or "%s:%d:%d" % (b.get("type"), i, len(json.dumps(b, default=str)))
+                    if key in done:
+                        continue
+                    done.add(key)
+                    t = b.get("type")
+                    if t == "tool_use":
                         tools[b.get("id")] = (b.get("name") or "?", b.get("input") if isinstance(b.get("input"), dict) else {})
-                        ctx["other"] += _est(b.get("input"))
-                    elif isinstance(b, dict) and b.get("type") == "text":
-                        ctx["other"] += _est(b.get("text"))
+                        size = _est(b.get("input"))
+                        ctx["other"] += size
+                    elif t == "text":
+                        size = _est(b.get("text"))
+                        ctx["other"] += size
+                    elif t in ("thinking", "redacted_thinking"):
+                        sig = b.get("signature") or b.get("data") or ""
+                        size = _est(b.get("thinking")) + int(len(sig) * THINK_TOKENS_PER_SIG_CHAR)
+                        ctx["thinking"] += size
+                    else:
+                        continue
+                    vis[mid] = vis.get(mid, 0) + size
             ts = evt.get("timestamp")
             if isinstance(ts, str):
                 first = first or ts
@@ -215,17 +292,39 @@ def parse_transcript(path, card_files=(), root=""):
     out = {k: 0 for k in KEYS}
     cats = {c: 0.0 for c in CATS}
     models = {}
+    out_est = 0
+    # caratteri/4 sottostima i token di codice e output di shell (fattore 1,4-1,8
+    # misurato su transcript reali). Ogni turno ha l'input reale, quindi il
+    # fattore si calibra sul transcript stesso: input = a + b * stimato, dove a
+    # è la parte fissa (system prompt e tool) e b il fattore del tokenizer.
+    pts = []
     for mid in order:
         u = by_msg[mid]
         if u["model"] == "<synthetic>":
             continue
+        s = snap.get(mid) or {}
+        # Il thinking è già in token reali (dalla signature): fuori dal fit.
+        x = sum(s.get(c, 0) for c in CATS if c not in ("system", "thinking"))
+        y = u["input"] + u["cache_read"] + u["cache_creation"] - s.get("thinking", 0)
+        if x > 0 and y > 0:
+            pts.append((x, y))
+    factor = calibrate(pts)
+    for mid in order:
+        u = by_msg[mid]
+        if u["model"] == "<synthetic>":
+            continue
+        if not u["final"] and vis.get(mid, 0) > u["output"]:
+            # Riga finale mai scritta (succede nei transcript dei subagenti):
+            # l'output si ricostruisce da ciò che il messaggio contiene.
+            out_est += vis[mid] - u["output"]
+            u["output"] = vis[mid]
         for k in KEYS:
             out[k] += u[k]
         m = models.setdefault(u["model"], {k: 0 for k in KEYS})
         for k in KEYS:
             m[k] += u[k]
         real_in = u["input"] + u["cache_read"] + u["cache_creation"]
-        seen = snap.get(mid) or {}
+        seen = {c: v * (1 if c == "thinking" else factor) for c, v in (snap.get(mid) or {}).items()}
         est = sum(seen.get(c, 0) for c in CATS if c != "system")
         if real_in <= 0:
             continue
@@ -242,9 +341,40 @@ def parse_transcript(path, card_files=(), root=""):
     out["categories"] = {c: int(round(v)) for c, v in cats.items() if round(v)}
     heavy.sort(key=lambda h: -h[0])
     out["heavy"] = [{"tokens": h[0], "tool": h[1], "category": h[2], "file": h[3]} for h in heavy[:5] if h[0]]
+    out["output_estimated"] = out_est
+    out["chars_per_token"] = round(4 / factor, 2)
+    out["cost_state"] = _cost_state(cost_state)
     out["first"] = first
     out["last"] = last
     return out
+
+
+def _cost_state(evt):
+    """Costo reale scritto da Claude Code (evento `cost-state`): USD per modello."""
+    if not isinstance(evt, dict):
+        return None
+    mu = evt.get("modelUsage")
+    models = {}
+    if isinstance(mu, dict):
+        for name, m in mu.items():
+            if isinstance(m, dict) and isinstance(m.get("costUSD"), (int, float)):
+                models[name] = float(m["costUSD"])
+    total = evt.get("totalCostUSD")
+    if not isinstance(total, (int, float)):
+        total = sum(models.values()) if models else None
+    if total is None:
+        return None
+    return {"usd": float(total), "by_model": models, "session": evt.get("sessionId"),
+            "unknown_model_cost": bool(evt.get("hasUnknownModelCost"))}
+
+
+# Rapporti di prezzo tra i tipi di token (uguali per tutti i modelli Claude):
+# servono solo a ripartire sui nodi il costo reale, che resta quello di cost-state.
+PRICE_WEIGHT = {"input": 1.0, "output": 5.0, "cache_read": 0.1, "cache_creation": 1.25}
+
+
+def _weight(e):
+    return sum(e.get(k, 0) * w for k, w in PRICE_WEIGHT.items())
 
 
 def node_for_agent(state, agent_id):
@@ -285,6 +415,8 @@ def build(root):
     by_model = {}
     heavy = []
     totals = {k: 0 for k in KEYS}
+    out_est = 0
+    sessions = {}      # sessionId -> cost-state (dal transcript principale)
     for path, meta in src.items():
         if not isinstance(meta, dict):
             continue
@@ -292,6 +424,9 @@ def build(root):
         r = parse_transcript(path, files_of.get(label, ()), root)
         if not r or not r["turns"]:
             continue
+        if r.get("cost_state"):
+            sessions[r["cost_state"].get("session") or path] = r["cost_state"]
+        out_est += r.get("output_estimated", 0)
         e = by_node.setdefault(label, {k: 0 for k in KEYS})
         e.setdefault("turns", 0)
         e.setdefault("agents", 0)
@@ -318,14 +453,31 @@ def build(root):
     for m in by_model.values():
         m["total"] = sum(m[k] for k in KEYS)
     totals["total"] = sum(totals[k] for k in KEYS)
+    totals["output_estimated"] = out_est
     prev = read_json(os.path.join(root, ".sjck", "tokens.json"), {}) or {}
     heavy.sort(key=lambda h: -h["tokens"])
+    cost = None
+    if sessions:
+        # Costo reale (cost-state) ripartito sui nodi in proporzione al peso di prezzo.
+        usd = sum(s["usd"] for s in sessions.values())
+        wsum = sum(_weight(e) for e in by_node.values()) or 1.0
+        for e in by_node.values():
+            e["cost_usd"] = round(usd * _weight(e) / wsum, 4)
+        bym = {}
+        for s in sessions.values():
+            for m, v in s["by_model"].items():
+                bym[m] = round(bym.get(m, 0.0) + v, 4)
+        cost = {"usd": round(usd, 4), "by_model": bym, "source": "cost-state",
+                "split": "per-node shares weighted by token price ratios",
+                "complete": not any(s.get("unknown_model_cost") for s in sessions.values())}
+    elif isinstance(prev, dict):
+        cost = prev.get("cost")
     return {
         "source": "transcripts",
         "categories_estimated": True,
         "updated": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "totals": totals,
-        "cost": prev.get("cost") if isinstance(prev, dict) else None,
+        "cost": cost,
         "by_node": by_node,
         "by_model": by_model,
         "heavy": heavy[:5],
@@ -364,6 +516,12 @@ def analyze(tokens_data, state):
             out.append({"kind": "cache", "node": nid, "tokens": inp, "saving_estimate": int(inp * (0.5 - hit) * 0.9),
                         "title": "%s cache hit only %d%%" % (nid, round(hit * 100)),
                         "suggestion": "Context changes at the top each turn (e.g. edited files re-read early): keep the card and stable instructions first."})
+        # Thinking: resta nel contesto e viene riletto a ogni turno successivo.
+        think = cats.get("thinking", 0)
+        if think > 0.25 * inp and think > 20000:
+            out.append({"kind": "thinking", "node": nid, "tokens": think, "saving_estimate": int(think * 0.5),
+                        "title": "%s: past thinking is %d%% of its input (%s re-read every turn)" % (nid, round(think / inp * 100), _k(think)),
+                        "suggestion": "Thinking stays in context: lower the effort for this node, or split it so each agent starts with a short context."})
         # Spreco: nodi falliti o con tentativi ripetuti.
         att = n.get("attempts") or 0
         if n.get("status") in ("failed", "blocked") or att:

@@ -189,3 +189,104 @@ class CategoriesTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def ev(**kw):
+    return json.dumps(kw)
+
+
+class RealTranscriptFormatTest(unittest.TestCase):
+    """Casi visti nei transcript reali di Claude Code 2.x (dati sintetici)."""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix="sjck-fmt-")
+
+    def tearDown(self):
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def _t(self, lines):
+        p = os.path.join(self.dir, "t.jsonl")
+        with open(p, "w") as f:
+            f.write("\n".join(lines) + "\n")
+        return p
+
+    def _asst(self, mid, blocks, out, stop=None, cr=1000):
+        return ev(type="assistant", message={
+            "id": mid, "role": "assistant", "model": "claude-opus-5-5", "content": blocks,
+            "stop_reason": stop,
+            "usage": {"input_tokens": 1, "output_tokens": out,
+                      "cache_read_input_tokens": cr, "cache_creation_input_tokens": 0}})
+
+    def test_partial_final_line_output_is_rebuilt_from_content(self):
+        # Subagente: solo righe di streaming (stop_reason None, usage di message_start).
+        sig = "s" * 3000
+        p = self._t([
+            self._asst("m1", [{"type": "thinking", "thinking": "", "signature": sig}], 8),
+            self._asst("m1", [{"type": "text", "text": "x" * 400}], 8),
+        ])
+        r = tokens.parse_transcript(p)
+        want = int(3000 * tokens.THINK_TOKENS_PER_SIG_CHAR) + 100
+        self.assertEqual(r["output"], want)
+        self.assertEqual(r["output_estimated"], want - 8)
+
+    def test_final_line_output_is_trusted(self):
+        p = self._t([
+            self._asst("m1", [{"type": "thinking", "thinking": "", "signature": "s" * 3000}], 8),
+            self._asst("m1", [{"type": "text", "text": "x" * 400}], 1234, stop="end_turn"),
+        ])
+        r = tokens.parse_transcript(p)
+        self.assertEqual(r["output"], 1234)
+        self.assertEqual(r["output_estimated"], 0)
+
+    def test_request_blobs_are_not_counted_twice_and_attachments_are_reminders(self):
+        big = "y" * 40000
+        p = self._t([
+            ev(type="user", message={"role": "user", "content": "q"}),
+            ev(type="api-request-blob", hash="h", message={"role": "user", "content": [{"type": "text", "text": big}]}),
+            ev(type="attachment", attachment={"type": "skill_listing"}, rendered=[{"content": "r" * 800}]),
+            self._asst("m1", [{"type": "text", "text": "a"}], 5, stop="end_turn", cr=50000),
+        ])
+        r = tokens.parse_transcript(p)
+        cats = r["categories"]
+        self.assertGreater(cats.get("reminders", 0), 0)
+        # Il blob da 10k token non deve finire in `other`.
+        self.assertLess(cats.get("other", 0), 1000)
+
+    def test_cost_state_is_read(self):
+        p = self._t([
+            self._asst("m1", [{"type": "text", "text": "a"}], 5, stop="end_turn"),
+            ev(type="cost-state", sessionId="S1", totalCostUSD=1.5,
+               modelUsage={"claude-opus-5-5": {"costUSD": 1.4}, "claude-haiku-5-5": {"costUSD": 0.1}}),
+        ])
+        cs = tokens.parse_transcript(p)["cost_state"]
+        self.assertEqual(cs["usd"], 1.5)
+        self.assertEqual(cs["session"], "S1")
+        self.assertEqual(cs["by_model"]["claude-haiku-5-5"], 0.1)
+
+    def test_calibration(self):
+        # input = 20000 + 1.6 * stimato -> fattore 1.6
+        pts = [(x, 20000 + 1.6 * x) for x in (1000, 5000, 20000, 60000, 90000)]
+        self.assertAlmostEqual(tokens.calibrate(pts), 1.6, places=6)
+        self.assertEqual(tokens.calibrate(pts[:2]), tokens.DEFAULT_FACTOR)
+        self.assertEqual(tokens.calibrate([(x, 9 * x) for x in (1, 2, 3, 4)]), 2.5)
+
+    def test_build_splits_real_cost_across_nodes(self):
+        root = self.dir
+        os.makedirs(os.path.join(root, ".sjck"))
+        with open(os.path.join(root, ".sjck", "state.json"), "w") as f:
+            json.dump({"status": "running", "nodes": [{"id": "T01"}]}, f)
+        main = os.path.join(root, "main.jsonl")
+        sub = os.path.join(root, "sub.jsonl")
+        with open(main, "w") as f:
+            f.write(self._asst("m1", [], 100, stop="end_turn", cr=10000) + "\n")
+            f.write(ev(type="cost-state", sessionId="S", totalCostUSD=2.0, modelUsage={}) + "\n")
+        with open(sub, "w") as f:
+            f.write(self._asst("s1", [], 100, stop="end_turn", cr=10000) + "\n")
+        tokens.add_source(root, main, "ORCH", "main")
+        tokens.add_source(root, sub, "T01", "agent")
+        d = tokens.build(root)
+        self.assertEqual(d["cost"]["usd"], 2.0)
+        self.assertEqual(d["cost"]["source"], "cost-state")
+        # Stessi token -> metà costo ciascuno.
+        self.assertAlmostEqual(d["by_node"]["ORCH"]["cost_usd"], 1.0, places=3)
+        self.assertAlmostEqual(d["by_node"]["T01"]["cost_usd"], 1.0, places=3)

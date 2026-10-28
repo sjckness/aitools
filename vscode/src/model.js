@@ -70,7 +70,7 @@ function tokensTooltip(data) {
   for (const n of Object.values(T.by_node || {})) for (const [c, v] of Object.entries(n.categories || {})) cats[c] = (cats[c] || 0) + v;
   const sum = Object.values(cats).reduce((a, b) => a + b, 0);
   if (sum) {
-    const label = { system: 'system', card: 'card', interfaces: 'interfaces', file_read_in_card: 'files in card', file_read_outside_card: 'files outside card', tool_output: 'tool output', agent_messages: 'agent messages', other: 'other' };
+    const label = { system: 'system', card: 'card', interfaces: 'interfaces', file_read_in_card: 'files in card', file_read_outside_card: 'files outside card', tool_output: 'tool output', agent_messages: 'agent messages', thinking: 'past thinking', reminders: 'reminders', other: 'other' };
     lines.push('Context' + (T.categories_estimated ? ' (estimated)' : '') + ': ' + Object.entries(cats).sort((a, b) => b[1] - a[1]).slice(0, 4)
       .map(([c, v]) => `${label[c] || c} ${Math.round((v / sum) * 100)}%`).join(' · '));
   }
