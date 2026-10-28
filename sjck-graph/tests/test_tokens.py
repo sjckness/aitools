@@ -271,6 +271,8 @@ class RealTranscriptFormatTest(unittest.TestCase):
         self.assertEqual(tokens.calibrate([(x, 9 * x) for x in (1, 2, 3, 4)]), 2.5)
 
     def test_build_splits_real_cost_across_nodes(self):
+        os.environ["SJCK_FX_OFFLINE"] = "1"
+        self.addCleanup(os.environ.pop, "SJCK_FX_OFFLINE", None)
         root = self.dir
         os.makedirs(os.path.join(root, ".sjck"))
         with open(os.path.join(root, ".sjck", "state.json"), "w") as f:
@@ -290,3 +292,84 @@ class RealTranscriptFormatTest(unittest.TestCase):
         # Stessi token -> metà costo ciascuno.
         self.assertAlmostEqual(d["by_node"]["ORCH"]["cost_usd"], 1.0, places=3)
         self.assertAlmostEqual(d["by_node"]["T01"]["cost_usd"], 1.0, places=3)
+
+
+class EurTest(unittest.TestCase):
+    XML = (b'<gesmes:Envelope><Cube><Cube time="2026-10-27">'
+           b'<Cube currency="USD" rate="1.0800"/><Cube currency="JPY" rate="160.1"/></Cube></Cube></gesmes:Envelope>')
+
+    def setUp(self):
+        self.home = tempfile.mkdtemp(prefix="sjck-home-")
+        self.env = dict(os.environ)
+        os.environ["HOME"] = self.home
+        os.environ.pop("SJCK_EUR_PER_USD", None)
+        os.environ.pop("SJCK_FX_OFFLINE", None)
+
+    def tearDown(self):
+        os.environ.clear()
+        os.environ.update(self.env)
+        shutil.rmtree(self.home, ignore_errors=True)
+
+    def _fake_urlopen(self, payload=None, fail=False):
+        import urllib.request
+        calls = []
+
+        class R(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def fake(url, timeout=None):
+            calls.append(url)
+            if fail:
+                raise OSError("offline")
+            return R(payload)
+        orig = urllib.request.urlopen
+        urllib.request.urlopen = fake
+        self.addCleanup(setattr, urllib.request, "urlopen", orig)
+        return calls
+
+    def test_ecb_rate_is_parsed_and_cached_once_a_day(self):
+        calls = self._fake_urlopen(self.XML)
+        fx = tokens.eur_per_usd()
+        self.assertAlmostEqual(fx["rate"], round(1 / 1.08, 6))
+        self.assertEqual((fx["source"], fx["date"]), ("ECB", "2026-10-27"))
+        tokens.eur_per_usd()
+        self.assertEqual(len(calls), 1)  # seconda chiamata dalla cache
+
+    def test_failure_is_not_retried_every_call(self):
+        calls = self._fake_urlopen(fail=True)
+        self.assertIsNone(tokens.eur_per_usd())
+        self.assertIsNone(tokens.eur_per_usd())
+        self.assertEqual(len(calls), 1)
+
+    def test_manual_rate_wins(self):
+        os.environ["SJCK_EUR_PER_USD"] = "0.9"
+        self.assertEqual(tokens.eur_per_usd()["rate"], 0.9)
+
+    def test_offline_falls_back_to_old_cache_or_none(self):
+        self._fake_urlopen(fail=True)
+        self.assertIsNone(tokens.eur_per_usd())
+        os.makedirs(os.path.join(self.home, ".sjck"), exist_ok=True)
+        with open(os.path.join(self.home, ".sjck", "fx.json"), "w") as f:
+            json.dump({"rate": 0.91, "date": "2026-10-01", "source": "ECB", "checked": "2026-10-01"}, f)
+        self.assertEqual(tokens.eur_per_usd()["rate"], 0.91)
+
+    def test_build_adds_eur(self):
+        os.environ["SJCK_EUR_PER_USD"] = "0.5"
+        root = tempfile.mkdtemp(prefix="sjck-eur-")
+        self.addCleanup(shutil.rmtree, root, True)
+        os.makedirs(os.path.join(root, ".sjck"))
+        with open(os.path.join(root, ".sjck", "state.json"), "w") as f:
+            json.dump({"status": "running", "nodes": []}, f)
+        main = os.path.join(root, "m.jsonl")
+        with open(main, "w") as f:
+            f.write(json.dumps({"type": "assistant", "message": {"id": "a", "role": "assistant", "model": "m",
+                    "stop_reason": "end_turn", "content": [], "usage": {"input_tokens": 1, "output_tokens": 1}}}) + "\n")
+            f.write(json.dumps({"type": "cost-state", "sessionId": "S", "totalCostUSD": 4.0, "modelUsage": {}}) + "\n")
+        tokens.add_source(root, main, "ORCH", "main")
+        d = tokens.build(root)
+        self.assertEqual(d["cost"]["eur"], 2.0)
+        self.assertEqual(d["by_node"]["ORCH"]["cost_eur"], 2.0)

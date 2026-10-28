@@ -368,6 +368,63 @@ def _cost_state(evt):
             "unknown_model_cost": bool(evt.get("hasUnknownModelCost"))}
 
 
+ECB_URL = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
+
+
+def _fx_cache_path():
+    return os.path.join(os.path.expanduser("~"), ".sjck", "fx.json")
+
+
+def eur_per_usd(fetch=True):
+    """Tasso USD->EUR: {"rate", "date", "source"} oppure None.
+
+    Ordine: SJCK_EUR_PER_USD (manuale) > cache di oggi > tasso di riferimento
+    BCE (una richiesta al giorno, timeout 3 s, nessun dato inviato) > ultima
+    cache, anche vecchia. Mai un errore: senza tasso il costo resta in USD.
+    """
+    env = os.environ.get("SJCK_EUR_PER_USD")
+    if env:
+        try:
+            return {"rate": float(env), "date": None, "source": "SJCK_EUR_PER_USD"}
+        except ValueError:
+            pass
+    cp = _fx_cache_path()
+    cached = read_json(cp)
+    today = datetime.date.today().isoformat()
+    if isinstance(cached, dict) and cached.get("checked") == today and cached.get("rate"):
+        return cached
+    now = datetime.datetime.now().timestamp()
+    recently_failed = isinstance(cached, dict) and now - (cached.get("failed_at") or 0) < 3600
+    if fetch and not recently_failed and not os.environ.get("SJCK_FX_OFFLINE"):
+        try:
+            import re
+            import urllib.request
+            with urllib.request.urlopen(ECB_URL, timeout=3) as r:
+                xml = r.read(20000).decode("utf-8", "replace")
+            usd = re.search(r"currency=['\"]USD['\"]\s+rate=['\"]([0-9.]+)", xml)
+            day = re.search(r"time=['\"](\d{4}-\d{2}-\d{2})", xml)
+            if usd and float(usd.group(1)) > 0:
+                fx = {"rate": round(1 / float(usd.group(1)), 6), "date": day.group(1) if day else None,
+                      "source": "ECB", "checked": today}
+                try:
+                    os.makedirs(os.path.dirname(cp), exist_ok=True)
+                    write_json(cp, fx)
+                except OSError:
+                    pass
+                return fx
+        except Exception:
+            pass
+        # Fallito: niente nuovi tentativi per un'ora (ogni hook pagherebbe il timeout).
+        try:
+            os.makedirs(os.path.dirname(cp), exist_ok=True)
+            write_json(cp, dict(cached if isinstance(cached, dict) else {}, failed_at=int(now)))
+        except OSError:
+            pass
+    if isinstance(cached, dict) and cached.get("rate"):
+        return cached  # vecchio ma meglio di niente: la data lo dice
+    return None
+
+
 # Rapporti di prezzo tra i tipi di token (uguali per tutti i modelli Claude):
 # servono solo a ripartire sui nodi il costo reale, che resta quello di cost-state.
 PRICE_WEIGHT = {"input": 1.0, "output": 5.0, "cache_read": 0.1, "cache_creation": 1.25}
@@ -470,6 +527,12 @@ def build(root):
         cost = {"usd": round(usd, 4), "by_model": bym, "source": "cost-state",
                 "split": "per-node shares weighted by token price ratios",
                 "complete": not any(s.get("unknown_model_cost") for s in sessions.values())}
+        fx = eur_per_usd()
+        if fx:
+            cost["eur"] = round(usd * fx["rate"], 4)
+            cost["fx"] = {"eur_per_usd": fx["rate"], "date": fx.get("date"), "source": fx.get("source")}
+            for e in by_node.values():
+                e["cost_eur"] = round(e["cost_usd"] * fx["rate"], 4)
     elif isinstance(prev, dict):
         cost = prev.get("cost")
     return {
@@ -608,6 +671,12 @@ def main(argv):
         t = data["totals"]
         print("tokens: %d total (input %d, output %d, cache read %d, cache write %d), %d nodes"
               % (t["total"], t["input"], t["output"], t["cache_read"], t["cache_creation"], len(data["by_node"])))
+        c = data.get("cost")
+        if isinstance(c, dict) and c.get("eur") is not None:
+            print("cost: EUR %.2f (USD %.2f, 1 USD = %s EUR, %s %s)" % (c["eur"], c["usd"], c["fx"]["eur_per_usd"],
+                  c["fx"].get("source") or "", c["fx"].get("date") or ""))
+        elif isinstance(c, dict):
+            print("cost: USD %.2f (no EUR rate)" % c["usd"])
         return 0
     except Exception as e:  # mai bloccare Claude
         if "--hook" not in argv:

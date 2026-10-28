@@ -89,6 +89,15 @@ function levels(){
   var out=[];nodes.forEach(function(n){var d=lvl[n.id];(out[d]=out[d]||[]).push(n)});return out.filter(Boolean);
 }
 
+function costKpi(){
+  var c=T&&T.cost;
+  if(c==null)return ['cost','—','known at session end'];
+  if(typeof c==='number')return ['cost',String(c),T.currency||''];
+  if(c.eur!=null){var fx=c.fx||{};
+    return ['cost','€ '+c.eur.toFixed(2),'$ '+c.usd.toFixed(2)+' · 1 $ = '+fx.eur_per_usd+' € ('+(fx.source||'')+(fx.date?' '+fx.date:'')+')']}
+  return ['cost','$ '+c.usd.toFixed(2),'no EUR rate'];
+}
+
 function kpis(){
   var cnt=function(s){return nodes.filter(function(n){return n.status===s}).length};
   var run=nodes.filter(function(n){return n.status==='running'}).map(function(n){return n.id});
@@ -96,7 +105,7 @@ function kpis(){
     var hit=inp?Math.round((t.cache_read||0)/inp*100)+'%':'—';var v=cnt('validated');
     return [['total tokens',k(t.total!=null?t.total:(t.input||0)+(t.output||0)),'all agents'],['cache hit',hit,'cache read / input'],
       ['per validated node',v?k((t.total||0)/v):'—',v+' validated nodes'],['wasted',k(R&&R.wasted),'failed attempts, loops, reads outside card'],
-      ['cost',T.cost!=null?T.cost:'[prices]',T.cost!=null?(T.currency||''):'set prices.json']]}
+      costKpi()]}
   return [['nodes',cnt('validated')+'/'+nodes.length,'validated'],['running',String(run.length),run.join(' · ')||'—'],
     ['subagents',String(M.subagents||0),'launched'],['validator fail',String(M.validator_fails||0),'rejected attempts'],
     ['watchdog',String((M.watchdog_warnings||0)+(M.watchdog_stops||0)),(M.watchdog_warnings||0)+' nudges · '+(M.watchdog_stops||0)+' stops']];
