@@ -27,7 +27,7 @@
 - [ ] Tool limitati a lettura: non scrive né lo stato né change request
 
 ## v0.4 — token analytics
-- [ ] Spec: `docs/specs/v0.4-token-analytics.md` (consumo reale dai transcript, costo, dove si risparmia, baseline senza kit, token visualizer)
+- [~] Spec: `docs/specs/v0.4-token-analytics.md` — fatti A (raccolta + categorie stimate) e C (insight); mancano B (costo), D (baseline), curva nel tempo (consumo reale dai transcript, costo, dove si risparmia, baseline senza kit, token visualizer)
 
 ## v0.5 — memoria tra run
 - [ ] `.sjck/lessons.md`: errori ricorrenti del validator, letti dal planner

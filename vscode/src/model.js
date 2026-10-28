@@ -48,6 +48,35 @@ function nodeTokens(data, id) {
   return t ? (t.total != null ? t.total : (t.input || 0) + (t.output || 0)) : null;
 }
 
+// "125k tokens" for the run, from .sjck/tokens.json; null when not collected yet.
+function runTokens(data) {
+  const t = data && data.tokens && data.tokens.totals;
+  if (!t) return null;
+  const total = t.total != null ? t.total : (t.input || 0) + (t.output || 0);
+  return total ? `${k(total)} tokens` : null;
+}
+
+// Multi-line breakdown: by type, cache hit and by node, largest first.
+function tokensTooltip(data) {
+  const T = data && data.tokens;
+  if (!T || !T.totals) return '';
+  const t = T.totals;
+  const inp = (t.input || 0) + (t.cache_read || 0) + (t.cache_creation || 0);
+  const lines = [`Tokens: ${k(t.total) || 0} — input ${k(t.input || 0)} · cache read ${k(t.cache_read || 0)} · cache write ${k(t.cache_creation || 0)} · output ${k(t.output || 0)}`];
+  if (inp) lines.push(`Cache hit: ${Math.round(((t.cache_read || 0) / inp) * 100)}%`);
+  const nodes = Object.entries(T.by_node || {}).map(([id, n]) => [id, n.total != null ? n.total : (n.input || 0) + (n.output || 0)]).sort((a, b) => b[1] - a[1]);
+  if (nodes.length) lines.push(nodes.slice(0, 8).map(([id, v]) => `${id} ${k(v)}`).join(' · '));
+  const cats = {};
+  for (const n of Object.values(T.by_node || {})) for (const [c, v] of Object.entries(n.categories || {})) cats[c] = (cats[c] || 0) + v;
+  const sum = Object.values(cats).reduce((a, b) => a + b, 0);
+  if (sum) {
+    const label = { system: 'system', card: 'card', interfaces: 'interfaces', file_read_in_card: 'files in card', file_read_outside_card: 'files outside card', tool_output: 'tool output', agent_messages: 'agent messages', thinking: 'past thinking', reminders: 'reminders', other: 'other' };
+    lines.push('Context' + (T.categories_estimated ? ' (estimated)' : '') + ': ' + Object.entries(cats).sort((a, b) => b[1] - a[1]).slice(0, 4)
+      .map(([c, v]) => `${label[c] || c} ${Math.round((v / sum) * 100)}%`).join(' · '));
+  }
+  return lines.join('\n');
+}
+
 // One line under each node in the tree.
 function nodeDescription(n, data) {
   const parts = [n.status];
@@ -139,9 +168,25 @@ function changes(prev, cur) {
   if (prev.state.status !== cur.state.status) {
     if (cur.state.status === 'done') out.push({ level: 'info', text: 'sjck: run finished' });
     if (cur.state.status === 'failed') out.push({ level: 'error', text: 'sjck: run failed' });
-    if (cur.state.status === 'planned') out.push({ level: 'info', text: 'sjck: plan ready for review', action: 'plan' });
+  }
+  // A new plan: first one in the workspace, after another run, or a re-plan (new planned_at).
+  if (cur.state.status === 'planned' &&
+      (prev.state.status !== 'planned' || (cur.state.planned_at || '') !== (prev.state.planned_at || ''))) {
+    out.push({ level: 'info', text: planText(cur.state), action: 'plan' });
   }
   return out;
 }
 
-module.exports = { levels, icon, nodeDescription, nodeTooltip, statusText, waitingCount, decorations, decorationFor, changes, norm, k };
+// "sjck: plan ready — <goal> (5 nodes · mode L · ~120k–200k tokens)"
+function planText(s) {
+  const bits = [`${(s.nodes || []).length} nodes`];
+  if (s.mode) bits.push('mode ' + s.mode);
+  const t = s.estimate && s.estimate.tokens;
+  if (Array.isArray(t) && t.length === 2) bits.push(`~${k(t[0])}–${k(t[1])} tokens`);
+  return `sjck: plan ready${s.goal ? ' — ' + s.goal : ''} (${bits.join(' · ')})`;
+}
+
+// Stands in for "no .sjck/state.json yet", so the first plan is announced too.
+const EMPTY = Object.freeze({ state: Object.freeze({ status: 'none', nodes: Object.freeze([]) }) });
+
+module.exports = { levels, icon, nodeDescription, nodeTooltip, statusText, waitingCount, decorations, decorationFor, changes, planText, EMPTY, runTokens, tokensTooltip, norm, k };

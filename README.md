@@ -324,7 +324,7 @@ Native views over the same `.sjck/` folder, no console needed.
 
 <img src="docs/img/vscode-mission-control.png" alt="sjck Mission Control in VS Code: progress ring, KPIs, live agent graph, inbox, plan score and activity timeline" width="100%">
 
-- **Mission Control** (new in 0.1.4) — a full panel with the live, animated
+- **Mission Control** (since 0.1.4) — a full panel with the live, animated
   graph (pan/zoom), a progress ring, KPIs (tokens, tool calls, live agents,
   what's waiting for you, validator fails), a drawer per node with card, files
   and diff, the inbox with one-click decisions, plan score and critic verdict,
